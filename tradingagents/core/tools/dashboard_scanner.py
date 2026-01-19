@@ -39,6 +39,76 @@ class SignalStrength(Enum):
 
 
 @dataclass
+class TradingChecklist:
+    """
+    交易检查清单 - 每项条件用 ✅⚠️❌ 标记
+    
+    交易原则：
+    1. 严禁追高 - 乖离率超限自动标记危险
+    2. 趋势交易 - 顺势而为
+    3. 精确点位 - 明确买入/止损/目标
+    4. 风险优先 - 盈亏比至少 2:1
+    """
+    # === 趋势确认（权重 30%）===
+    ma_alignment: str = "❓"        # MA 多头/空头排列
+    macd_cross: str = "❓"          # MACD 金叉/死叉状态
+    trend_strength: str = "❓"      # ADX 趋势强度 (>25 强趋势)
+    price_position: str = "❓"      # 价格位置（MA 上方/下方）
+    
+    # === 风险控制（权重 30%）===
+    bias_check: str = "❓"          # 乖离率检查 (>5% 危险)
+    volatility_ok: str = "❓"       # ATR 波动率合理性
+    volume_confirm: str = "❓"      # 量价配合确认
+    stop_loss_clear: str = "❓"     # 止损位清晰
+    
+    # === 买入时机（权重 25%）===
+    rsi_zone: str = "❓"            # RSI 区间 (30-70 健康)
+    kdj_signal: str = "❓"          # KDJ 金叉/死叉
+    support_near: str = "❓"        # 接近支撑位
+    pullback_buy: str = "❓"        # 回调到位
+    
+    # === 盈利空间（权重 15%）===
+    upside_room: str = "❓"         # 上涨空间（到阻力位）
+    risk_reward: str = "❓"         # 盈亏比 >= 2:1
+    
+    # === 计算出的关键点位 ===
+    entry_price: float = 0.0       # 建议买入价
+    stop_loss: float = 0.0         # 止损价（基于 ATR）
+    target_price: float = 0.0      # 目标价（基于阻力位）
+    risk_reward_ratio: float = 0.0 # 实际盈亏比
+    
+    def pass_count(self) -> int:
+        """统计通过的检查项数量"""
+        checks = [
+            self.ma_alignment, self.macd_cross, self.trend_strength, self.price_position,
+            self.bias_check, self.volatility_ok, self.volume_confirm, self.stop_loss_clear,
+            self.rsi_zone, self.kdj_signal, self.support_near, self.pullback_buy,
+            self.upside_room, self.risk_reward
+        ]
+        return sum(1 for c in checks if c == "✅")
+    
+    def warning_count(self) -> int:
+        """统计警告项数量"""
+        checks = [
+            self.ma_alignment, self.macd_cross, self.trend_strength, self.price_position,
+            self.bias_check, self.volatility_ok, self.volume_confirm, self.stop_loss_clear,
+            self.rsi_zone, self.kdj_signal, self.support_near, self.pullback_buy,
+            self.upside_room, self.risk_reward
+        ]
+        return sum(1 for c in checks if c == "⚠️")
+    
+    def fail_count(self) -> int:
+        """统计失败项数量"""
+        checks = [
+            self.ma_alignment, self.macd_cross, self.trend_strength, self.price_position,
+            self.bias_check, self.volatility_ok, self.volume_confirm, self.stop_loss_clear,
+            self.rsi_zone, self.kdj_signal, self.support_near, self.pullback_buy,
+            self.upside_room, self.risk_reward
+        ]
+        return sum(1 for c in checks if c == "❌")
+
+
+@dataclass
 class StockRecommendation:
     """股票推荐结果"""
     code: str
@@ -47,19 +117,41 @@ class StockRecommendation:
     current_price: float = 0.0
     change_pct: float = 0.0          # 当日涨跌幅
     
-    # 技术指标
+    # === 均线指标 ===
     ma5: float = 0.0
     ma10: float = 0.0
     ma20: float = 0.0
-    rsi: float = 0.0
-    volume_ratio: float = 0.0
+    ma60: float = 0.0                # 季线（中期趋势）
     
-    # 评分与信号
+    # === 动量指标 ===
+    rsi: float = 50.0                # RSI (0-100)
+    macd: float = 0.0                # MACD 线
+    macd_signal: float = 0.0         # 信号线
+    macd_hist: float = 0.0           # MACD 柱状图
+    kdj_k: float = 50.0
+    kdj_d: float = 50.0
+    kdj_j: float = 50.0
+    
+    # === 趋势与波动指标 ===
+    adx: float = 0.0                 # 趋势强度 (>25 强趋势, >40 极强)
+    atr: float = 0.0                 # 真实波幅 (用于计算止损)
+    bias: float = 0.0                # 乖离率 (>5% 超买风险)
+    
+    # === 量能指标 ===
+    volume_ratio: float = 1.0        # 量比
+    obv_trend: str = ""              # OBV 趋势方向
+    
+    # === 关键点位 ===
+    support: float = 0.0             # 支撑位
+    resistance: float = 0.0          # 阻力位
+    
+    # === 评分与信号 ===
     score: int = 0                   # 综合评分 0-100
     signal: SignalStrength = SignalStrength.HOLD
     
-    # 推荐理由
+    # === 详细信息 ===
     reasons: List[str] = field(default_factory=list)
+    checklist: TradingChecklist = field(default_factory=TradingChecklist)
     data_source: str = ""            # 数据来源
     
     def to_dict(self) -> Dict[str, Any]:
@@ -69,14 +161,37 @@ class StockRecommendation:
             'market': self.market,
             'current_price': self.current_price,
             'change_pct': self.change_pct,
+            # 均线
             'ma5': self.ma5,
             'ma10': self.ma10,
             'ma20': self.ma20,
+            'ma60': self.ma60,
+            # 动量
             'rsi': self.rsi,
+            'macd': self.macd,
+            'macd_hist': self.macd_hist,
+            'kdj_k': self.kdj_k,
+            'kdj_d': self.kdj_d,
+            # 趋势
+            'adx': self.adx,
+            'atr': self.atr,
+            'bias': self.bias,
+            # 量能
             'volume_ratio': self.volume_ratio,
+            # 点位
+            'support': self.support,
+            'resistance': self.resistance,
+            'entry_price': self.checklist.entry_price,
+            'stop_loss': self.checklist.stop_loss,
+            'target_price': self.checklist.target_price,
+            'risk_reward_ratio': self.checklist.risk_reward_ratio,
+            # 评分
             'score': self.score,
             'signal': self.signal.value,
             'reasons': self.reasons,
+            'checklist_pass': self.checklist.pass_count(),
+            'checklist_warn': self.checklist.warning_count(),
+            'checklist_fail': self.checklist.fail_count(),
             'data_source': self.data_source,
         }
 
@@ -499,7 +614,11 @@ class DashboardScanner:
         return recommendations
     
     def _analyze_stock(self, code: str, market: str) -> Optional[StockRecommendation]:
-        """分析单只股票"""
+        """
+        分析单只股票
+        
+        返回包含完整技术分析和检查清单的推荐结果
+        """
         try:
             df, source = self.data_manager.get_daily_data(code, days=60)
             
@@ -508,21 +627,17 @@ class DashboardScanner:
             
             latest = df.iloc[-1]
             
+            # 创建推荐对象（基础数据）
             rec = StockRecommendation(
                 code=code,
                 name=self._get_stock_name(code),
                 market=market,
                 current_price=float(latest['close']),
                 change_pct=float(latest.get('pct_chg', 0)),
-                ma5=float(latest.get('ma5', 0)),
-                ma10=float(latest.get('ma10', 0)),
-                ma20=float(latest.get('ma20', 0)),
-                rsi=float(latest.get('rsi', 50)),
-                volume_ratio=float(latest.get('volume_ratio', 1.0)),
                 data_source=source,
             )
             
-            # 计算评分
+            # 计算完整评分（内部会计算所有技术指标和检查清单）
             self._calculate_score(rec, df)
             
             return rec
@@ -531,68 +646,404 @@ class DashboardScanner:
             logger.debug(f"分析 {code} 失败: {e}")
             return None
     
+    def _calculate_technical_indicators(self, rec: StockRecommendation, df: pd.DataFrame) -> None:
+        """计算高级技术指标"""
+        if len(df) < 20:
+            return
+        
+        close = df['close']
+        high = df['high']
+        low = df['low']
+        volume = df['volume']
+        
+        # === 均线 ===
+        rec.ma5 = float(close.rolling(5).mean().iloc[-1]) if len(df) >= 5 else 0
+        rec.ma10 = float(close.rolling(10).mean().iloc[-1]) if len(df) >= 10 else 0
+        rec.ma20 = float(close.rolling(20).mean().iloc[-1]) if len(df) >= 20 else 0
+        rec.ma60 = float(close.rolling(60).mean().iloc[-1]) if len(df) >= 60 else rec.ma20
+        
+        # === 乖离率 BIAS (严禁追高核心指标) ===
+        if rec.ma20 > 0:
+            rec.bias = (rec.current_price - rec.ma20) / rec.ma20 * 100
+        
+        # === MACD ===
+        ema12 = close.ewm(span=12, adjust=False).mean()
+        ema26 = close.ewm(span=26, adjust=False).mean()
+        rec.macd = float(ema12.iloc[-1] - ema26.iloc[-1])
+        rec.macd_signal = float((ema12 - ema26).ewm(span=9, adjust=False).mean().iloc[-1])
+        rec.macd_hist = rec.macd - rec.macd_signal
+        
+        # === KDJ ===
+        if len(df) >= 9:
+            low_min = low.rolling(9).min()
+            high_max = high.rolling(9).max()
+            rsv = (close - low_min) / (high_max - low_min) * 100
+            rsv = rsv.fillna(50)
+            rec.kdj_k = float(rsv.ewm(com=2, adjust=False).mean().iloc[-1])
+            rec.kdj_d = float(pd.Series([rec.kdj_k]).ewm(com=2, adjust=False).mean().iloc[-1])
+            rec.kdj_j = 3 * rec.kdj_k - 2 * rec.kdj_d
+        
+        # === RSI ===
+        if len(df) >= 14:
+            delta = close.diff()
+            gain = delta.where(delta > 0, 0).rolling(14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+            rs = gain / loss.replace(0, 1e-10)
+            rec.rsi = float(100 - (100 / (1 + rs)).iloc[-1])
+        
+        # === ADX (趋势强度) ===
+        if len(df) >= 14:
+            tr = pd.concat([
+                high - low,
+                abs(high - close.shift(1)),
+                abs(low - close.shift(1))
+            ], axis=1).max(axis=1)
+            atr14 = tr.rolling(14).mean()
+            rec.atr = float(atr14.iloc[-1])
+            
+            # 简化的 ADX 计算
+            plus_dm = (high - high.shift(1)).where((high - high.shift(1)) > (low.shift(1) - low), 0)
+            minus_dm = (low.shift(1) - low).where((low.shift(1) - low) > (high - high.shift(1)), 0)
+            plus_di = 100 * (plus_dm.rolling(14).mean() / atr14)
+            minus_di = 100 * (minus_dm.rolling(14).mean() / atr14)
+            dx = abs(plus_di - minus_di) / (plus_di + minus_di + 1e-10) * 100
+            rec.adx = float(dx.rolling(14).mean().iloc[-1]) if not dx.isna().all() else 0
+        
+        # === 支撑/阻力位 ===
+        if len(df) >= 20:
+            recent_lows = low.rolling(20).min()
+            recent_highs = high.rolling(20).max()
+            rec.support = float(recent_lows.iloc[-1])
+            rec.resistance = float(recent_highs.iloc[-1])
+        
+        # === 量比 ===
+        if len(df) >= 5:
+            avg_vol_5 = volume.rolling(5).mean().iloc[-1]
+            rec.volume_ratio = float(volume.iloc[-1] / avg_vol_5) if avg_vol_5 > 0 else 1.0
+
+    def _build_checklist(self, rec: StockRecommendation, df: pd.DataFrame) -> None:
+        """
+        构建交易检查清单
+        
+        核心原则：
+        - ❌ 严禁追高：乖离率 > 5% 自动标记「危险」
+        - ✅ 趋势交易：顺势操作，多头排列优先
+        - 📍 精确点位：基于 ATR 计算止损，基于阻力位设目标
+        - 📋 盈亏比：至少 2:1
+        """
+        cl = rec.checklist
+        
+        # ========== 趋势确认（30%）==========
+        
+        # 1. MA 多头排列
+        if rec.ma5 > rec.ma10 > rec.ma20:
+            cl.ma_alignment = "✅"
+        elif rec.ma5 < rec.ma10 < rec.ma20:
+            cl.ma_alignment = "❌"
+        else:
+            cl.ma_alignment = "⚠️"
+        
+        # 2. MACD 金叉/死叉
+        if rec.macd_hist > 0:
+            if rec.macd > rec.macd_signal:
+                cl.macd_cross = "✅"  # 金叉且柱状图向上
+            else:
+                cl.macd_cross = "⚠️"
+        else:
+            cl.macd_cross = "❌" if rec.macd < rec.macd_signal else "⚠️"
+        
+        # 3. 趋势强度 (ADX)
+        if rec.adx >= 25:
+            cl.trend_strength = "✅"  # 强趋势
+        elif rec.adx >= 15:
+            cl.trend_strength = "⚠️"  # 弱趋势
+        else:
+            cl.trend_strength = "❌"  # 无趋势/震荡
+        
+        # 4. 价格位置
+        if rec.current_price > rec.ma20:
+            cl.price_position = "✅"
+        elif rec.current_price > rec.ma60:
+            cl.price_position = "⚠️"
+        else:
+            cl.price_position = "❌"
+        
+        # ========== 风险控制（30%）==========
+        
+        # 5. 乖离率检查（核心！严禁追高）
+        if abs(rec.bias) <= 3:
+            cl.bias_check = "✅"  # 安全区间
+        elif abs(rec.bias) <= 5:
+            cl.bias_check = "⚠️"  # 警惕区间
+        else:
+            cl.bias_check = "❌"  # 危险！超买/超卖
+        
+        # 6. 波动率检查
+        if rec.atr > 0 and rec.current_price > 0:
+            atr_pct = rec.atr / rec.current_price * 100
+            if atr_pct <= 3:
+                cl.volatility_ok = "✅"  # 波动适中
+            elif atr_pct <= 5:
+                cl.volatility_ok = "⚠️"
+            else:
+                cl.volatility_ok = "❌"  # 波动过大
+        
+        # 7. 量价配合
+        if 0.8 <= rec.volume_ratio <= 2.0:
+            if rec.change_pct >= 0:
+                cl.volume_confirm = "✅"  # 量价配合
+            else:
+                cl.volume_confirm = "⚠️"
+        elif rec.volume_ratio > 3.0:
+            cl.volume_confirm = "❌" if rec.change_pct < 0 else "⚠️"  # 异常放量
+        else:
+            cl.volume_confirm = "⚠️"  # 量能不足
+        
+        # 8. 止损位计算（基于 ATR）
+        if rec.atr > 0:
+            cl.stop_loss = rec.current_price - 2 * rec.atr  # 2倍ATR止损
+            cl.stop_loss_clear = "✅" if cl.stop_loss > 0 else "⚠️"
+        else:
+            cl.stop_loss = rec.support * 0.98 if rec.support > 0 else rec.current_price * 0.95
+            cl.stop_loss_clear = "⚠️"
+        
+        # ========== 买入时机（25%）==========
+        
+        # 9. RSI 区间
+        if 30 <= rec.rsi <= 50:
+            cl.rsi_zone = "✅"  # 理想买入区间
+        elif 50 < rec.rsi <= 70:
+            cl.rsi_zone = "⚠️"  # 中性
+        elif rec.rsi < 30:
+            cl.rsi_zone = "✅"  # 超卖反弹机会
+        else:
+            cl.rsi_zone = "❌"  # 超买风险
+        
+        # 10. KDJ 信号
+        if rec.kdj_k > rec.kdj_d and rec.kdj_j < 80:
+            cl.kdj_signal = "✅"  # 金叉且未超买
+        elif rec.kdj_k < rec.kdj_d:
+            cl.kdj_signal = "❌"  # 死叉
+        else:
+            cl.kdj_signal = "⚠️"
+        
+        # 11. 接近支撑位
+        if rec.support > 0 and rec.current_price > 0:
+            dist_to_support = (rec.current_price - rec.support) / rec.current_price * 100
+            if dist_to_support <= 3:
+                cl.support_near = "✅"  # 接近支撑
+            elif dist_to_support <= 8:
+                cl.support_near = "⚠️"
+            else:
+                cl.support_near = "❌"  # 远离支撑
+        
+        # 12. 回调买入（价格接近 MA10/MA20）
+        if rec.ma10 > 0:
+            dist_to_ma10 = abs(rec.current_price - rec.ma10) / rec.ma10 * 100
+            if dist_to_ma10 <= 2:
+                cl.pullback_buy = "✅"  # 回调到 MA10 附近
+            elif dist_to_ma10 <= 5:
+                cl.pullback_buy = "⚠️"
+            else:
+                cl.pullback_buy = "❌"
+        
+        # ========== 盈利空间（15%）==========
+        
+        # 13. 上涨空间
+        if rec.resistance > rec.current_price:
+            upside = (rec.resistance - rec.current_price) / rec.current_price * 100
+            if upside >= 10:
+                cl.upside_room = "✅"  # 空间 >= 10%
+            elif upside >= 5:
+                cl.upside_room = "⚠️"
+            else:
+                cl.upside_room = "❌"
+        else:
+            cl.upside_room = "❌"
+        
+        # 14. 计算目标价和盈亏比
+        cl.entry_price = rec.current_price
+        cl.target_price = rec.resistance if rec.resistance > rec.current_price else rec.current_price * 1.10
+        
+        potential_profit = cl.target_price - cl.entry_price
+        potential_loss = cl.entry_price - cl.stop_loss
+        
+        if potential_loss > 0:
+            cl.risk_reward_ratio = potential_profit / potential_loss
+            if cl.risk_reward_ratio >= 3:
+                cl.risk_reward = "✅"  # 盈亏比 >= 3:1
+            elif cl.risk_reward_ratio >= 2:
+                cl.risk_reward = "⚠️"  # 盈亏比 >= 2:1
+            else:
+                cl.risk_reward = "❌"  # 盈亏比不足
+        else:
+            cl.risk_reward = "❌"
+        
+        rec.checklist = cl
+
     def _calculate_score(self, rec: StockRecommendation, df: pd.DataFrame) -> None:
-        """计算综合评分"""
-        score = 50  # 基础分
+        """
+        改进的综合评分系统
+        
+        评分维度：
+        1. 趋势确认 (30分)
+        2. 风险控制 (30分) - 核心！
+        3. 买入时机 (25分)
+        4. 盈利空间 (15分)
+        """
+        # 先计算技术指标
+        self._calculate_technical_indicators(rec, df)
+        
+        # 构建检查清单
+        self._build_checklist(rec, df)
+        
+        cl = rec.checklist
+        score = 0
         reasons = []
         
-        # 1. 趋势判断（40分）
-        if rec.ma5 > rec.ma10 > rec.ma20:
-            score += 30
-            reasons.append("✅ 多头排列 MA5>MA10>MA20")
-            if rec.ma5 > 0 and (rec.current_price - rec.ma5) / rec.ma5 < 0.03:
-                score += 10
-                reasons.append("✅ 价格贴近 MA5，买点良好")
-        elif rec.ma5 < rec.ma10 < rec.ma20:
-            score -= 20
-            reasons.append("⚠️ 空头排列")
+        # ========== 1. 趋势确认 (30分) ==========
+        trend_score = 0
         
-        # 2. RSI 判断（20分）
-        if 30 <= rec.rsi <= 70:
-            score += 10
-            if 40 <= rec.rsi <= 60:
-                score += 5
-                reasons.append("✅ RSI 健康区间")
-        elif rec.rsi < 30:
-            score += 15
-            reasons.append("✅ RSI 超卖，可能反弹")
-        elif rec.rsi > 70:
-            score -= 10
-            reasons.append("⚠️ RSI 超买，注意风险")
+        # MA 排列 (10分)
+        if cl.ma_alignment == "✅":
+            trend_score += 10
+            reasons.append("✅ MA 多头排列")
+        elif cl.ma_alignment == "❌":
+            trend_score -= 5
+            reasons.append("❌ MA 空头排列")
         
-        # 3. 量能判断（15分）
-        if 0.7 <= rec.volume_ratio <= 1.5:
-            score += 10
-            reasons.append("✅ 量能正常")
-        elif rec.volume_ratio < 0.7:
-            score += 5
-            reasons.append("📊 缩量，可能在洗盘")
-        elif rec.volume_ratio > 2.0:
-            if rec.change_pct > 0:
-                score += 5
-                reasons.append("📈 放量上涨")
+        # MACD (8分)
+        if cl.macd_cross == "✅":
+            trend_score += 8
+            reasons.append("✅ MACD 金叉向上")
+        elif cl.macd_cross == "❌":
+            trend_score -= 3
+            reasons.append("❌ MACD 死叉")
+        
+        # 趋势强度 (7分)
+        if cl.trend_strength == "✅":
+            trend_score += 7
+            reasons.append(f"✅ 强趋势 ADX={rec.adx:.1f}")
+        elif cl.trend_strength == "❌":
+            reasons.append(f"⚠️ 震荡行情 ADX={rec.adx:.1f}")
+        
+        # 价格位置 (5分)
+        if cl.price_position == "✅":
+            trend_score += 5
+        
+        score += max(0, trend_score)
+        
+        # ========== 2. 风险控制 (30分) - 核心！ ==========
+        risk_score = 30  # 从满分开始扣
+        
+        # 乖离率检查 (最重要！严禁追高)
+        if cl.bias_check == "❌":
+            risk_score -= 20  # 严重扣分
+            if rec.bias > 5:
+                reasons.append(f"❌ 严禁追高！乖离率 {rec.bias:.1f}% > 5%")
             else:
-                score -= 5
-                reasons.append("⚠️ 放量下跌")
+                reasons.append(f"❌ 超卖风险！乖离率 {rec.bias:.1f}%")
+        elif cl.bias_check == "⚠️":
+            risk_score -= 8
+            reasons.append(f"⚠️ 乖离率偏高 {rec.bias:.1f}%")
+        else:
+            reasons.append(f"✅ 乖离率安全 {rec.bias:.1f}%")
         
-        # 4. 近期表现（15分）
-        if len(df) >= 5:
-            recent_5d_change = (df.iloc[-1]['close'] - df.iloc[-5]['close']) / df.iloc[-5]['close'] * 100
-            if 0 < recent_5d_change < 10:
-                score += 10
-                reasons.append(f"📈 近5日涨 {recent_5d_change:.1f}%")
-            elif recent_5d_change > 15:
-                score -= 5
-                reasons.append(f"⚠️ 近5日涨幅过大 {recent_5d_change:.1f}%")
+        # 波动率 (5分)
+        if cl.volatility_ok == "❌":
+            risk_score -= 5
+            reasons.append("⚠️ 波动率过大")
         
-        # 限制分数范围
+        # 量价配合 (5分)
+        if cl.volume_confirm == "✅":
+            reasons.append("✅ 量价配合良好")
+        elif cl.volume_confirm == "❌":
+            risk_score -= 5
+            reasons.append("❌ 量价背离")
+        
+        score += max(0, risk_score)
+        
+        # ========== 3. 买入时机 (25分) ==========
+        timing_score = 0
+        
+        # RSI (8分)
+        if cl.rsi_zone == "✅":
+            timing_score += 8
+            if rec.rsi < 30:
+                reasons.append(f"✅ RSI 超卖 {rec.rsi:.0f}，反弹机会")
+            else:
+                reasons.append(f"✅ RSI 健康 {rec.rsi:.0f}")
+        elif cl.rsi_zone == "❌":
+            timing_score -= 5
+            reasons.append(f"❌ RSI 超买 {rec.rsi:.0f}，风险高")
+        
+        # KDJ (7分)
+        if cl.kdj_signal == "✅":
+            timing_score += 7
+            reasons.append("✅ KDJ 金叉")
+        elif cl.kdj_signal == "❌":
+            timing_score -= 3
+        
+        # 支撑位 (5分)
+        if cl.support_near == "✅":
+            timing_score += 5
+            reasons.append(f"✅ 接近支撑位 ¥{rec.support:.2f}")
+        
+        # 回调买入 (5分)
+        if cl.pullback_buy == "✅":
+            timing_score += 5
+            reasons.append("✅ 回调到 MA10 附近，良好买点")
+        
+        score += max(0, timing_score)
+        
+        # ========== 4. 盈利空间 (15分) ==========
+        profit_score = 0
+        
+        # 上涨空间 (8分)
+        if cl.upside_room == "✅":
+            profit_score += 8
+            upside_pct = (cl.target_price - rec.current_price) / rec.current_price * 100
+            reasons.append(f"✅ 上涨空间 {upside_pct:.1f}%")
+        elif cl.upside_room == "❌":
+            reasons.append("⚠️ 上涨空间有限")
+        
+        # 盈亏比 (7分)
+        if cl.risk_reward == "✅":
+            profit_score += 7
+            reasons.append(f"✅ 盈亏比 {cl.risk_reward_ratio:.1f}:1")
+        elif cl.risk_reward == "⚠️":
+            profit_score += 3
+            reasons.append(f"⚠️ 盈亏比 {cl.risk_reward_ratio:.1f}:1")
+        else:
+            reasons.append(f"❌ 盈亏比不足 {cl.risk_reward_ratio:.1f}:1")
+        
+        score += profit_score
+        
+        # ========== 添加关键点位信息 ==========
+        reasons.append("")  # 空行分隔
+        reasons.append("📍 **关键点位**")
+        reasons.append(f"   买入价: ¥{cl.entry_price:.2f}")
+        reasons.append(f"   止损价: ¥{cl.stop_loss:.2f}")
+        reasons.append(f"   目标价: ¥{cl.target_price:.2f}")
+        
+        # ========== 最终评分 ==========
         rec.score = max(0, min(100, score))
         rec.reasons = reasons
         
-        # 生成信号
-        if rec.score >= 80:
+        # 检查清单统计
+        pass_count = cl.pass_count()
+        fail_count = cl.fail_count()
+        
+        # 生成信号（结合评分和检查清单）
+        if fail_count >= 3 or cl.bias_check == "❌":
+            # 有严重风险项，降级处理
+            if rec.score >= 60:
+                rec.signal = SignalStrength.HOLD
+            else:
+                rec.signal = SignalStrength.SELL
+        elif rec.score >= 80 and pass_count >= 10:
             rec.signal = SignalStrength.STRONG_BUY
-        elif rec.score >= 65:
+        elif rec.score >= 65 and pass_count >= 7:
             rec.signal = SignalStrength.BUY
         elif rec.score >= 50:
             rec.signal = SignalStrength.HOLD

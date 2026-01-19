@@ -336,28 +336,84 @@ def _generate_dashboard_markdown(result: dict) -> str:
             reasons = rec.get("reasons", [])
             data_source = rec.get("data_source", "-")
 
-            # Technical indicators
+            # Technical indicators (improved)
             ma5 = rec.get("ma5", 0)
             ma10 = rec.get("ma10", 0)
             ma20 = rec.get("ma20", 0)
-            rsi = rec.get("rsi", 0)
-            volume_ratio = rec.get("volume_ratio", 0)
+            ma60 = rec.get("ma60", 0)
+            rsi = rec.get("rsi", 50)
+            adx = rec.get("adx", 0)
+            bias = rec.get("bias", 0)
+            macd_hist = rec.get("macd_hist", 0)
+            volume_ratio = rec.get("volume_ratio", 1)
+            
+            # Key price levels
+            entry_price = rec.get("entry_price", price)
+            stop_loss = rec.get("stop_loss", 0)
+            target_price = rec.get("target_price", 0)
+            risk_reward = rec.get("risk_reward_ratio", 0)
+            support = rec.get("support", 0)
+            resistance = rec.get("resistance", 0)
+            
+            # Checklist stats
+            checklist_pass = rec.get("checklist_pass", 0)
+            checklist_warn = rec.get("checklist_warn", 0)
+            checklist_fail = rec.get("checklist_fail", 0)
 
             lines.append(f"#### {i}. {name} (`{code}`) - {market}")
             lines.append("")
-            lines.append(f"- **当前价格**: ¥{price:.2f}")
-            lines.append(f"- **综合评分**: {score}/100")
-            lines.append(f"- **交易信号**: {signal}")
-            lines.append(f"- **数据来源**: {data_source}")
+            
+            # 核心信息表格
+            lines.append("| 指标 | 数值 | 指标 | 数值 |")
+            lines.append("|:-----|-----:|:-----|-----:|")
+            lines.append(f"| **现价** | ¥{price:.2f} | **评分** | {score}/100 |")
+            lines.append(f"| **乖离率** | {bias:+.1f}% | **RSI** | {rsi:.0f} |")
+            lines.append(f"| **ADX** | {adx:.1f} | **MACD柱** | {macd_hist:+.2f} |")
+            lines.append(f"| **量比** | {volume_ratio:.2f} | **信号** | {signal} |")
             lines.append("")
-            lines.append("**技术指标**:")
-            lines.append(f"- MA5: {ma5:.2f} | MA10: {ma10:.2f} | MA20: {ma20:.2f}")
-            lines.append(f"- RSI(14): {rsi:.1f}")
-            lines.append(f"- 量比: {volume_ratio:.2f}")
+            
+            # 精确点位（核心！）
+            lines.append("**📍 精确点位**")
             lines.append("")
-            lines.append("**推荐理由**:")
+            lines.append("| 买入价 | 止损价 | 目标价 | 盈亏比 |")
+            lines.append("|-------:|-------:|-------:|:------:|")
+            lines.append(f"| ¥{entry_price:.2f} | ¥{stop_loss:.2f} | ¥{target_price:.2f} | {risk_reward:.1f}:1 |")
+            lines.append("")
+            
+            # 支撑/阻力
+            lines.append(f"- **支撑位**: ¥{support:.2f} | **阻力位**: ¥{resistance:.2f}")
+            lines.append("")
+            
+            # 检查清单统计
+            lines.append(f"**📋 检查清单**: ✅ {checklist_pass} 通过 | ⚠️ {checklist_warn} 警告 | ❌ {checklist_fail} 失败")
+            lines.append("")
+            
+            # MA 排列
+            if ma5 > ma10 > ma20:
+                ma_status = "✅ 多头排列"
+            elif ma5 < ma10 < ma20:
+                ma_status = "❌ 空头排列"
+            else:
+                ma_status = "⚠️ 均线交叉"
+            lines.append(f"**均线状态**: {ma_status}")
+            lines.append(f"- MA5: {ma5:.2f} | MA10: {ma10:.2f} | MA20: {ma20:.2f} | MA60: {ma60:.2f}")
+            lines.append("")
+            
+            # 风险提示
+            if abs(bias) > 5:
+                lines.append(f"⚠️ **风险提示**: 乖离率 {bias:+.1f}% 超过 5%，注意追高风险！")
+                lines.append("")
+            
+            # 分析要点（过滤点位信息）
+            lines.append("**分析要点**:")
             for reason in reasons:
-                lines.append(f"- {reason}")
+                if reason and not reason.startswith("📍") and not reason.startswith("   "):
+                    lines.append(f"- {reason}")
+            lines.append("")
+            
+            lines.append(f"*数据来源: {data_source}*")
+            lines.append("")
+            lines.append("---")
             lines.append("")
     else:
         lines.append("_暂无推荐股票_")

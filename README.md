@@ -116,6 +116,21 @@ CUSTOM_WEBHOOK_URLS=https://oapi.dingtalk.com/robot/send?access_token=xxx
 
 ## 使用方法
 
+### Web UI
+
+```bash
+# 启动 Web 界面
+python webui.py
+
+# 指定端口
+python webui.py --port 8080
+
+# 创建公开链接（通过 Gradio Share）
+python webui.py --share
+```
+
+访问 http://localhost:7860 即可使用图形界面。
+
 ### CLI 命令
 
 ```bash
@@ -237,6 +252,7 @@ notification.send("# 测试报告\n这是 Markdown 格式的消息")
 ```
 Clarity/
 ├── run_agent.py          # CLI 入口
+├── webui.py              # Web UI (Gradio)
 ├── templates/            # 规划文件模板
 ├── runtime/              # 运行时文件（git-ignored）
 │   ├── task_plan.md

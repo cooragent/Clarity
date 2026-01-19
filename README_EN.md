@@ -116,6 +116,21 @@ CUSTOM_WEBHOOK_URLS=https://discord.com/api/webhooks/xxx
 
 ## Usage
 
+### Web UI
+
+```bash
+# Start Web interface
+python webui.py
+
+# Specify port
+python webui.py --port 8080
+
+# Create a public link (via Gradio Share)
+python webui.py --share
+```
+
+Visit http://localhost:7860 to use the graphical interface.
+
 ### CLI Commands
 
 ```bash
@@ -237,6 +252,7 @@ The system uses three persistent files to manage long-running tasks:
 ```
 Clarity/
 ├── run_agent.py          # CLI entry point
+├── webui.py              # Web UI (Gradio)
 ├── templates/            # Planning file templates
 ├── runtime/              # Runtime files (git-ignored)
 │   ├── task_plan.md
