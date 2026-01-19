@@ -310,7 +310,7 @@ config = AgentConfig(
 
 ## 支持与贡献
 
-本项目由 **[Cooragent](https://www.cooragent.com/)** 团队提供技术支持。Cooragent 是由清华大学 LEAP 实验室孵化的智能体平台，致力于让每个人都能成为 Agent 的指挥官。
+本项目由 **[Cooragent](https://www.cooragent.com/)** 团队提供技术支持。Cooragent 是自演进的多智能体平台，致力于让每个人都能成为 Agent 的指挥官。
 
 ### 🌟 支持我们
 
