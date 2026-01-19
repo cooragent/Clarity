@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "tradingagents"
 version = "0.1.0"
@@ -38,3 +42,7 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "yfinance>=0.2.63",
 ]
+
+[tool.setuptools.packages.find]
+include = ["tradingagents*"]  # 只包含 tradingagents 及其子包
+exclude = ["assets", "configs", "runtime", "templates", ".claude"]

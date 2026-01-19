@@ -151,7 +151,10 @@ python run_agent.py dashboard                           # 扫描 A股+美股
 python run_agent.py dashboard -m A股 港股              # 扫描指定市场
 python run_agent.py dashboard -n 20 -o report.md       # 推荐20只，保存到文件
 python run_agent.py dashboard --push                   # 扫描并推送通知
+
 python run_agent.py dashboard -p --push-to wechat      # 仅推送到企业微信
+python run_agent.py dashboard --interval 30            # 每30分钟运行一次
+python run_agent.py dashboard -i 60 --push             # 每小时运行一次并推送
 ```
 
 ### Python 代码

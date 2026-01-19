@@ -151,7 +151,10 @@ python run_agent.py dashboard                           # Scan A-shares + US sto
 python run_agent.py dashboard -m A股 港股              # Scan specific markets
 python run_agent.py dashboard -n 20 -o report.md       # Top 20, save to file
 python run_agent.py dashboard --push                   # Scan and push notifications
+
 python run_agent.py dashboard -p --push-to telegram    # Push to Telegram only
+python run_agent.py dashboard --interval 30            # Run every 30 minutes
+python run_agent.py dashboard -i 60 --push             # Run hourly and push
 ```
 
 ### Python Code
