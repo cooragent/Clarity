@@ -15,6 +15,7 @@ class TaskType(Enum):
     STOCK_SCREENING = "stock_screening"  # 根据复杂条件深度查询并筛选股票
     HOLDINGS_TRACKING = "holdings_tracking"  # 跟踪某个金融大佬的最新持仓
     STOCK_ANALYSIS = "stock_analysis"  # 深度分析某只特定股票
+    DAILY_DASHBOARD = "daily_dashboard"  # 每日决策仪表盘
 
 
 class AgentRole(Enum):

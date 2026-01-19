@@ -25,18 +25,17 @@ from typing import Optional, List, Dict, Any
 import pandas as pd
 
 from .data_provider import DataFetcherManager, MarketType, detect_market_type
-from .data_provider.yfinance_fetcher import YfinanceFetcher
 
 logger = logging.getLogger(__name__)
 
 
 class SignalStrength(Enum):
     """信号强度"""
-    STRONG_BUY = "强烈买入"
-    BUY = "买入"
-    HOLD = "持有"
-    SELL = "卖出"
-    STRONG_SELL = "强烈卖出"
+    STRONG_BUY = "极具潜力"
+    BUY = "值得关注"
+    HOLD = "观望"
+    SELL = "谨慎对待"
+    STRONG_SELL = "风险较高"
 
 
 @dataclass
@@ -109,28 +108,181 @@ class DashboardScanner:
     
     功能：
     1. 扫描大盘获取市场概览
-    2. 筛选潜力股票
-    3. 生成每日推荐报告
+    2. 动态获取热门股票池
+    3. 筛选潜力股票
+    4. 生成每日推荐报告
     """
     
-    # A股热门股票池（用于扫描）
-    A_SHARE_POOL = [
-        '600519', '000858', '601318', '600036', '000001',  # 大盘蓝筹
-        '300750', '002594', '300059', '300124', '002475',  # 创业板龙头
-        '688981', '688012', '688036', '688599', '688008',  # 科创板
-        '601899', '600900', '601088', '600887', '000568',  # 行业龙头
-        '002352', '300274', '002415', '603259', '600809',
-    ]
-    
-    # 港股热门
-    HK_STOCK_POOL = [
-        '00700', '09988', '03690', '01810', '02020',  # 科技
-        '00941', '01398', '02318', '00939', '03988',  # 金融
-    ]
+    # 备用静态股票池（当动态获取失败时使用）
+    FALLBACK_A_SHARE = ['600519', '000858', '601318', '600036', '000001', '300750']
+    FALLBACK_HK = ['00700', '09988', '03690', '01810', '02020']
+    FALLBACK_US = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA']
     
     def __init__(self):
         self.data_manager = DataFetcherManager()
         self._stock_names: Dict[str, str] = {}  # 代码->名称缓存
+        self._hot_stocks_cache: Dict[str, List[str]] = {}  # 热门股票缓存
+    
+    def _get_hot_a_shares(self, limit: int = 50) -> List[str]:
+        """
+        动态获取 A 股热门股票
+        
+        数据来源：
+        1. 涨幅榜前 N 名
+        2. 成交额前 N 名
+        3. 龙虎榜股票
+        """
+        hot_stocks = set()
+        
+        try:
+            import akshare as ak
+            
+            # 1. 获取实时行情，按成交额排序（热门股）
+            logger.info("获取 A 股热门股票...")
+            df = ak.stock_zh_a_spot_em()
+            
+            if df is not None and not df.empty:
+                # 清理数据
+                df['成交额'] = pd.to_numeric(df['成交额'], errors='coerce')
+                df['涨跌幅'] = pd.to_numeric(df['涨跌幅'], errors='coerce')
+                
+                # 过滤 ST 股票和新股
+                if '名称' in df.columns:
+                    df = df[~df['名称'].str.contains('ST|N|C', na=False)]
+                
+                # 成交额 Top N
+                top_amount = df.nlargest(limit // 2, '成交额')
+                hot_stocks.update(top_amount['代码'].tolist())
+                
+                # 涨幅 Top N（过滤涨停）
+                gainers = df[(df['涨跌幅'] > 0) & (df['涨跌幅'] < 9.9)]
+                top_gainers = gainers.nlargest(limit // 3, '涨跌幅')
+                hot_stocks.update(top_gainers['代码'].tolist())
+                
+                logger.info(f"获取到 {len(hot_stocks)} 只 A 股热门股票")
+            
+            # 2. 获取龙虎榜股票（可选）
+            try:
+                lhb_df = ak.stock_lhb_detail_em(start_date="", end_date="")
+                if lhb_df is not None and not lhb_df.empty and '代码' in lhb_df.columns:
+                    lhb_codes = lhb_df['代码'].head(20).tolist()
+                    hot_stocks.update(lhb_codes)
+                    logger.info(f"添加龙虎榜 {len(lhb_codes)} 只股票")
+            except Exception as e:
+                logger.debug(f"获取龙虎榜失败: {e}")
+            
+        except Exception as e:
+            logger.warning(f"动态获取 A 股热门股票失败: {e}，使用备用列表")
+            return self.FALLBACK_A_SHARE
+        
+        result = list(hot_stocks)[:limit]
+        return result if result else self.FALLBACK_A_SHARE
+    
+    def _get_hot_us_stocks(self, limit: int = 50) -> List[str]:
+        """
+        动态获取美股热门股票
+        
+        数据来源：
+        1. 纳斯达克 100 成分股
+        2. 标普 500 热门股
+        """
+        hot_stocks = []
+        
+        try:
+            import yfinance as yf
+            
+            logger.info("获取美股热门股票...")
+            
+            # 获取纳斯达克 100 和标普 500 的部分成分股
+            # yfinance 可以通过 ETF 获取成分股信息
+            major_tickers = [
+                # 科技巨头
+                'AAPL', 'MSFT', 'NVDA', 'GOOGL', 'GOOG', 'AMZN', 'META', 'TSLA',
+                # 半导体
+                'AVGO', 'AMD', 'QCOM', 'INTC', 'TXN', 'MU', 'AMAT', 'LRCX',
+                # 软件/云
+                'CRM', 'ORCL', 'ADBE', 'NOW', 'INTU', 'SNOW', 'PANW', 'CRWD',
+                # 金融
+                'JPM', 'V', 'MA', 'BAC', 'WFC', 'GS', 'MS', 'BLK',
+                # 消费
+                'WMT', 'COST', 'HD', 'MCD', 'NKE', 'SBUX', 'TGT', 'LOW',
+                # 医疗
+                'UNH', 'JNJ', 'LLY', 'PFE', 'ABBV', 'MRK', 'TMO', 'ABT',
+                # 能源
+                'XOM', 'CVX', 'COP', 'SLB', 'EOG',
+                # 其他
+                'BRK-B', 'PG', 'KO', 'PEP', 'DIS', 'NFLX', 'PYPL',
+            ]
+            
+            # 获取这些股票的涨跌幅，按涨幅排序
+            hot_with_change = []
+            
+            for ticker in major_tickers[:min(len(major_tickers), limit * 2)]:
+                try:
+                    stock = yf.Ticker(ticker)
+                    hist = stock.history(period='2d')
+                    if len(hist) >= 2:
+                        change = (hist['Close'].iloc[-1] - hist['Close'].iloc[-2]) / hist['Close'].iloc[-2] * 100
+                        hot_with_change.append((ticker, change))
+                except:
+                    hot_with_change.append((ticker, 0))
+            
+            # 按涨幅排序
+            hot_with_change.sort(key=lambda x: x[1], reverse=True)
+            hot_stocks = [t[0] for t in hot_with_change[:limit]]
+            
+            logger.info(f"获取到 {len(hot_stocks)} 只美股热门股票")
+            
+        except Exception as e:
+            logger.warning(f"动态获取美股热门股票失败: {e}，使用备用列表")
+            return self.FALLBACK_US
+        
+        return hot_stocks if hot_stocks else self.FALLBACK_US
+    
+    def _get_hot_hk_stocks(self, limit: int = 30) -> List[str]:
+        """
+        动态获取港股热门股票
+        
+        数据来源：
+        1. 恒生指数成分股
+        2. 恒生科技指数成分股
+        """
+        hot_stocks = []
+        
+        try:
+            import akshare as ak
+            
+            logger.info("获取港股热门股票...")
+            
+            # 获取港股实时行情
+            try:
+                df = ak.stock_hk_spot_em()
+                if df is not None and not df.empty:
+                    df['成交额'] = pd.to_numeric(df['成交额'], errors='coerce')
+                    
+                    # 按成交额排序
+                    top_amount = df.nlargest(limit, '成交额')
+                    if '代码' in top_amount.columns:
+                        hot_stocks = top_amount['代码'].tolist()
+                    
+                    logger.info(f"获取到 {len(hot_stocks)} 只港股热门股票")
+            except Exception as e:
+                logger.debug(f"通过 akshare 获取港股失败: {e}")
+            
+            # 备用：恒生指数主要成分股
+            if not hot_stocks:
+                hot_stocks = [
+                    '00700', '09988', '03690', '01810', '02020',  # 科技
+                    '00941', '01398', '02318', '00939', '03988',  # 金融
+                    '00005', '00011', '00016', '00066', '00388',  # 蓝筹
+                    '01299', '02269', '02382', '00868', '01024',  # 其他
+                ]
+            
+        except Exception as e:
+            logger.warning(f"动态获取港股热门股票失败: {e}，使用备用列表")
+            return self.FALLBACK_HK
+        
+        return hot_stocks[:limit] if hot_stocks else self.FALLBACK_HK
     
     def scan_market(
         self,
@@ -293,10 +445,14 @@ class DashboardScanner:
         return None
     
     def _scan_a_share_stocks(self) -> List[StockRecommendation]:
-        """扫描 A 股股票池"""
+        """扫描 A 股热门股票（动态获取）"""
         recommendations = []
         
-        for code in self.A_SHARE_POOL:
+        # 动态获取热门 A 股
+        hot_stocks = self._get_hot_a_shares(limit=50)
+        logger.info(f"扫描 {len(hot_stocks)} 只 A 股热门股票...")
+        
+        for code in hot_stocks:
             try:
                 rec = self._analyze_stock(code, 'A股')
                 if rec and rec.score >= 50:
@@ -307,10 +463,14 @@ class DashboardScanner:
         return recommendations
     
     def _scan_us_stocks(self) -> List[StockRecommendation]:
-        """扫描美股股票池（纳斯达克）"""
+        """扫描美股热门股票（动态获取）"""
         recommendations = []
         
-        for code in YfinanceFetcher.get_nasdaq_top_stocks()[:30]:  # 取前30个
+        # 动态获取热门美股
+        hot_stocks = self._get_hot_us_stocks(limit=50)
+        logger.info(f"扫描 {len(hot_stocks)} 只美股热门股票...")
+        
+        for code in hot_stocks:
             try:
                 rec = self._analyze_stock(code, '美股')
                 if rec and rec.score >= 50:
@@ -321,10 +481,14 @@ class DashboardScanner:
         return recommendations
     
     def _scan_hk_stocks(self) -> List[StockRecommendation]:
-        """扫描港股股票池"""
+        """扫描港股热门股票（动态获取）"""
         recommendations = []
         
-        for code in self.HK_STOCK_POOL:
+        # 动态获取热门港股
+        hot_stocks = self._get_hot_hk_stocks(limit=30)
+        logger.info(f"扫描 {len(hot_stocks)} 只港股热门股票...")
+        
+        for code in hot_stocks:
             try:
                 rec = self._analyze_stock(code, '港股')
                 if rec and rec.score >= 50:

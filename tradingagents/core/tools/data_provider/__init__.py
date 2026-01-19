@@ -14,7 +14,7 @@
 - 美股: NASDAQ, NYSE (AAPL, NVDA, etc.)
 """
 
-from .base import BaseFetcher, DataFetcherManager, DataFetchError, MarketType
+from .base import BaseFetcher, DataFetcherManager, DataFetchError, MarketType, detect_market_type
 from .akshare_fetcher import AkshareFetcher
 from .efinance_fetcher import EfinanceFetcher
 from .yfinance_fetcher import YfinanceFetcher
@@ -24,6 +24,7 @@ __all__ = [
     'DataFetcherManager',
     'DataFetchError',
     'MarketType',
+    'detect_market_type',
     'AkshareFetcher',
     'EfinanceFetcher',
     'YfinanceFetcher',

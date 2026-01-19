@@ -13,6 +13,10 @@ Usage:
 
     # Natural language query
     python run_agent.py ask "分析一下苹果公司的股票"
+
+    # Daily dashboard (scan markets for potential stocks)
+    python run_agent.py dashboard
+    python run_agent.py dashboard -m A股 港股 -n 20
 """
 
 import argparse
@@ -127,6 +131,195 @@ async def run_ask(query: str) -> None:
     _print_result(result)
 
 
+async def run_dashboard(
+    markets: list[str] | None = None,
+    top_n: int = 10,
+    output_file: str | None = None,
+) -> None:
+    """Run daily dashboard scan and output markdown report."""
+    from tradingagents.core.tools.dashboard_scanner import DashboardScanner
+
+    if markets is None:
+        markets = ["A股", "美股"]
+
+    print(f"\n{'='*60}")
+    print(f"📊 每日决策仪表盘")
+    print(f"   扫描市场: {', '.join(markets)}")
+    print(f"   推荐数量: Top {top_n}")
+    print(f"{'='*60}\n")
+
+    scanner = DashboardScanner()
+
+    print("⏳ 正在扫描市场，请稍候...\n")
+    result = scanner.scan_market(markets=markets, top_n=top_n)
+
+    # Generate beautiful markdown report
+    markdown = _generate_dashboard_markdown(result)
+
+    # Print to console
+    print(markdown)
+
+    # Save to file if specified
+    if output_file:
+        output_path = Path(output_file)
+        output_path.write_text(markdown, encoding="utf-8")
+        print(f"\n📁 报告已保存至: {output_path.absolute()}")
+    else:
+        # Default save to runtime directory
+        runtime_dir = Path(__file__).parent / "runtime"
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        default_file = runtime_dir / f"dashboard_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+        default_file.write_text(markdown, encoding="utf-8")
+        print(f"\n📁 报告已保存至: {default_file.absolute()}")
+
+
+def _generate_dashboard_markdown(result: dict) -> str:
+    """Generate beautiful markdown report from dashboard scan result."""
+    lines = []
+    date = result.get("date", datetime.now().strftime("%Y-%m-%d"))
+
+    # Header
+    lines.append(f"# 📊 每日决策仪表盘")
+    lines.append(f"> 生成时间: {date} {datetime.now().strftime('%H:%M:%S')}")
+    lines.append("")
+
+    # Market Overview
+    lines.append("## 🌐 市场概览")
+    lines.append("")
+
+    overviews = result.get("market_overviews", [])
+    if overviews:
+        lines.append("| 市场 | 指数 | 点位 | 涨跌幅 | 上涨家数 | 下跌家数 | 成交额(亿) |")
+        lines.append("|:----:|:----:|-----:|-------:|---------:|---------:|-----------:|")
+        for ov in overviews:
+            if isinstance(ov, dict):
+                market = ov.get("market_type", "-")
+                index_name = ov.get("index_name", "-")
+                index_value = ov.get("index_value", 0)
+                change = ov.get("index_change_pct", 0)
+                up = ov.get("up_count", 0)
+                down = ov.get("down_count", 0)
+                amount = ov.get("total_amount", 0)
+                change_emoji = "🔴" if change < 0 else "🟢" if change > 0 else "⚪"
+                lines.append(
+                    f"| {market} | {index_name} | {index_value:,.2f} | "
+                    f"{change_emoji} {change:+.2f}% | {up} | {down} | {amount:,.1f} |"
+                )
+    else:
+        lines.append("_暂无市场数据_")
+
+    lines.append("")
+
+    # Top Recommendations
+    lines.append("## 🏆 今日潜力股 Top 10")
+    lines.append("")
+
+    recommendations = result.get("recommendations", [])
+    if recommendations:
+        lines.append("| 排名 | 代码 | 名称 | 市场 | 现价 | 涨跌幅 | 评分 | 信号 | 推荐理由 |")
+        lines.append("|:----:|:----:|:----:|:----:|-----:|-------:|:----:|:----:|:---------|")
+
+        for i, rec in enumerate(recommendations, 1):
+            code = rec.get("code", "-")
+            name = rec.get("name", "-")
+            market = rec.get("market", "-")
+            price = rec.get("current_price", 0)
+            change = rec.get("change_pct", 0)
+            score = rec.get("score", 0)
+            signal = rec.get("signal", "-")
+            reasons = rec.get("reasons", [])
+
+            # Signal emoji
+            signal_map = {
+                "极具潜力": "🚀",
+                "值得关注": "📈",
+                "观望": "⏸️",
+                "谨慎对待": "📉",
+                "风险较高": "🔻",
+            }
+            signal_emoji = signal_map.get(signal, "❓")
+
+            # Score color
+            if score >= 80:
+                score_display = f"**{score}**"
+            elif score >= 60:
+                score_display = f"{score}"
+            else:
+                score_display = f"_{score}_"
+
+            # Change emoji
+            change_emoji = "🔴" if change < 0 else "🟢" if change > 0 else "⚪"
+
+            # Reasons (first 2)
+            reason_text = "; ".join(reasons[:2]) if reasons else "-"
+
+            lines.append(
+                f"| {i} | `{code}` | {name} | {market} | "
+                f"{price:.2f} | {change_emoji} {change:+.2f}% | "
+                f"{score_display} | {signal_emoji} {signal} | {reason_text} |"
+            )
+
+        lines.append("")
+
+        # Detailed analysis for top 3
+        lines.append("### 📋 重点推荐详情")
+        lines.append("")
+
+        for i, rec in enumerate(recommendations[:3], 1):
+            code = rec.get("code", "-")
+            name = rec.get("name", "-")
+            market = rec.get("market", "-")
+            price = rec.get("current_price", 0)
+            score = rec.get("score", 0)
+            signal = rec.get("signal", "-")
+            reasons = rec.get("reasons", [])
+            data_source = rec.get("data_source", "-")
+
+            # Technical indicators
+            ma5 = rec.get("ma5", 0)
+            ma10 = rec.get("ma10", 0)
+            ma20 = rec.get("ma20", 0)
+            rsi = rec.get("rsi", 0)
+            volume_ratio = rec.get("volume_ratio", 0)
+
+            lines.append(f"#### {i}. {name} (`{code}`) - {market}")
+            lines.append("")
+            lines.append(f"- **当前价格**: ¥{price:.2f}")
+            lines.append(f"- **综合评分**: {score}/100")
+            lines.append(f"- **交易信号**: {signal}")
+            lines.append(f"- **数据来源**: {data_source}")
+            lines.append("")
+            lines.append("**技术指标**:")
+            lines.append(f"- MA5: {ma5:.2f} | MA10: {ma10:.2f} | MA20: {ma20:.2f}")
+            lines.append(f"- RSI(14): {rsi:.1f}")
+            lines.append(f"- 量比: {volume_ratio:.2f}")
+            lines.append("")
+            lines.append("**推荐理由**:")
+            for reason in reasons:
+                lines.append(f"- {reason}")
+            lines.append("")
+    else:
+        lines.append("_暂无推荐股票_")
+
+    lines.append("")
+
+    # Summary
+    summary = result.get("summary", "")
+    if summary:
+        lines.append("## 📝 市场总结")
+        lines.append("")
+        lines.append(summary)
+        lines.append("")
+
+    # Footer
+    lines.append("---")
+    lines.append("")
+    lines.append("*本报告由 Clarity 金融智能体自动生成，仅供参考，不构成投资建议。*")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
 def _print_result(result: dict) -> None:
     """Print the result in a formatted way."""
     print(f"\n{'='*60}")
@@ -176,6 +369,9 @@ Examples:
   python run_agent.py track "Warren Buffett"
   python run_agent.py screen "high dividend yield tech stocks"
   python run_agent.py ask "分析一下苹果公司的股票"
+  python run_agent.py dashboard                           # 扫描 A股+美股
+  python run_agent.py dashboard -m A股 港股              # 扫描指定市场
+  python run_agent.py dashboard -n 20 -o report.md       # 推荐20只，保存到文件
         """,
     )
 
@@ -214,6 +410,31 @@ Examples:
     )
     ask_parser.add_argument("query", help="Natural language query")
 
+    # Dashboard command
+    dashboard_parser = subparsers.add_parser(
+        "dashboard", help="Run daily dashboard scan"
+    )
+    dashboard_parser.add_argument(
+        "--markets",
+        "-m",
+        nargs="+",
+        default=["A股", "美股"],
+        choices=["A股", "美股", "港股"],
+        help="Markets to scan (default: A股 美股)",
+    )
+    dashboard_parser.add_argument(
+        "--top",
+        "-n",
+        type=int,
+        default=10,
+        help="Number of top stocks to recommend (default: 10)",
+    )
+    dashboard_parser.add_argument(
+        "--output",
+        "-o",
+        help="Output file path for markdown report",
+    )
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -229,6 +450,8 @@ Examples:
         asyncio.run(run_screen(args.criteria, args.date))
     elif args.command == "ask":
         asyncio.run(run_ask(args.query))
+    elif args.command == "dashboard":
+        asyncio.run(run_dashboard(args.markets, args.top, args.output))
 
 
 if __name__ == "__main__":
