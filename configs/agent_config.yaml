@@ -1,0 +1,132 @@
+# Financial Intelligence Agent Configuration
+# Claude-skill style with planning-with-files pattern
+
+# Project settings
+project_dir: "${PWD}/tradingagents"
+results_dir: "${TRADINGAGENTS_RESULTS_DIR:-./results}"
+templates_dir: "${PWD}/templates"
+
+# LLM settings
+llm_provider: "anthropic"  # anthropic, openai, google
+deep_think_llm: "claude-sonnet-4-20250514"
+quick_think_llm: "claude-sonnet-4-20250514"
+backend_url: null  # Use default API endpoint
+
+# Agent settings
+max_retry_count: 3
+max_debate_rounds: 1
+max_risk_discuss_rounds: 1
+
+# Tool settings
+online_tools: true
+
+# MCP Tools (reference: youtu-agent pattern)
+mcp_tools:
+  # Example: FinnHub MCP server
+  # - name: "finnhub"
+  #   command: "python"
+  #   args: ["-m", "mcp_finnhub"]
+  #   env:
+  #     FINNHUB_API_KEY: "${FINNHUB_API_KEY}"
+
+  # Example: Web search MCP server
+  # - name: "web_search"
+  #   command: "python"
+  #   args: ["-m", "mcp_web_search"]
+  #   env:
+  #     SERPER_API_KEY: "${SERPER_API_KEY}"
+
+# SubAgent configuration
+subagents:
+  fundamentals_analyst:
+    enabled: true
+    description: "Analyzes company fundamentals and financial statements"
+    tools:
+      - get_finnhub_insider_sentiment
+      - get_finnhub_insider_transactions
+      - get_balance_sheet
+      - get_cashflow
+      - get_income_statement
+
+  sentiment_analyst:
+    enabled: true
+    description: "Analyzes social media sentiment"
+    tools:
+      - get_reddit_stock_info
+      - web_search_sentiment
+
+  news_analyst:
+    enabled: true
+    description: "Analyzes news and market trends"
+    tools:
+      - get_finnhub_news
+      - get_google_news
+      - get_reddit_global_news
+      - web_search_news
+
+  technical_analyst:
+    enabled: true
+    description: "Analyzes technical indicators and price trends"
+    tools:
+      - get_yfin_data
+      - get_technical_indicator
+
+  holdings_hunter:
+    enabled: true
+    description: "Tracks institutional and guru holdings"
+    tools:
+      - search_guru_holdings
+      - search_13f_filings
+      - get_stock_institutional_holders
+      - web_crawl_holdings
+
+  alpha_hound:
+    enabled: true
+    description: "Screens and filters stocks"
+    tools:
+      - screen_by_fundamentals
+      - screen_by_technicals
+      - web_search_screener
+      - get_finnhub_stock_list
+      - analyze_screened_stocks
+
+# Task type configurations
+task_types:
+  stock_analysis:
+    description: "Deep analysis of a specific stock"
+    subagents:
+      - technical_analyst
+      - fundamentals_analyst
+      - news_analyst
+      - sentiment_analyst
+
+  holdings_tracking:
+    description: "Track an investor's holdings"
+    subagents:
+      - holdings_hunter
+      - news_analyst
+
+  stock_screening:
+    description: "Screen stocks based on criteria"
+    subagents:
+      - alpha_hound
+      - technical_analyst
+      - fundamentals_analyst
+
+# Planning files settings
+planning:
+  task_plan_template: "templates/task_plan.md"
+  findings_template: "templates/findings.md"
+  progress_template: "templates/progress.md"
+
+  # 2-Action Rule: Update findings after every 2 operations
+  findings_update_interval: 2
+
+  # Attention manipulation: Re-read plan every N tool calls
+  plan_refresh_interval: 10
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/agent.log"
