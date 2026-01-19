@@ -310,7 +310,7 @@ config = AgentConfig(
 
 ## Support & Contributing
 
-This project is supported by the **[Cooragent](https://www.cooragent.com/)** team. Cooragent is an AI agent platform incubated by Tsinghua University's LEAP Lab, dedicated to making everyone a commander of AI agents.
+This project is supported by the **[Cooragent](https://www.cooragent.com/)** team. Cooragent is an AI agent platform , dedicated to making everyone a commander of AI agents, which adapt, evolve, and stay aligned with users.
 
 ### 🌟 Support Us
 
