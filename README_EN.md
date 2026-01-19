@@ -12,11 +12,11 @@
   <a href="https://www.cooragent.com/">
     <img src="https://img.shields.io/badge/Powered%20by-Cooragent-blue?style=flat-square" alt="Powered by Cooragent">
   </a>
-  <a href="https://github.com/user/Clarity/stargazers">
-    <img src="https://img.shields.io/github/stars/user/Clarity?style=flat-square" alt="GitHub Stars">
+  <a href="https://github.com/cooragent/Clarity/stargazers">
+    <img src="https://img.shields.io/github/stars/cooragent/Clarity?style=flat-square" alt="GitHub Stars">
   </a>
-  <a href="https://github.com/user/Clarity/issues">
-    <img src="https://img.shields.io/github/issues/user/Clarity?style=flat-square" alt="GitHub Issues">
+  <a href="https://github.com/cooragent/Clarity/issues">
+    <img src="https://img.shields.io/github/issues/cooragent/Clarity?style=flat-square" alt="GitHub Issues">
   </a>
 </p>
 
@@ -324,7 +324,7 @@ If you find this project helpful:
 ### 📮 Contact Us
 
 - 🌐 Website: [cooragent.com](https://www.cooragent.com/)
-- 📧 Feedback: Please submit via [GitHub Issues](https://github.com/user/Clarity/issues)
+- 📧 Feedback: Please submit via [GitHub Issues](https://github.com/cooragent/Clarity/issues)
 
 ---
 
@@ -336,10 +336,10 @@ Apache 2.0
 
 ## Star History
 
-<a href="https://star-history.com/#user/Clarity&Date">
+<a href="https://star-history.com/#cooragent/Clarity&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=user/Clarity&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=user/Clarity&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=user/Clarity&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=cooragent/Clarity&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=cooragent/Clarity&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=cooragent/Clarity&type=Date" />
  </picture>
 </a>
