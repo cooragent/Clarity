@@ -214,14 +214,16 @@ class HealthResponse(BaseModel):
 async def root():
     """Root endpoint with API information."""
     return {
-        "name": "Financial Intelligence Agent API",
-        "version": "1.0.0",
+        "name": "Clarity - Financial Intelligence Agent API",
+        "version": "2.0.0",
         "docs": "/docs",
         "endpoints": {
             "analyze": "/api/v1/analyze",
             "track": "/api/v1/track",
             "screen": "/api/v1/screen",
             "ask": "/api/v1/ask",
+            "dashboard": "/api/v1/dashboard",
+            "dashboard_stock": "/api/v1/dashboard/stock/{code}",
         },
     }
 
@@ -347,6 +349,122 @@ async def ask_query(request: AskRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class DashboardRequest(BaseModel):
+    """Request model for dashboard scanning."""
+    
+    markets: list[str] = Field(
+        default=["A股", "美股"],
+        description="Markets to scan: A股, 美股, 港股"
+    )
+    top_n: int = Field(default=10, description="Number of recommendations to return")
+    
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {"markets": ["A股", "美股"], "top_n": 10}
+            ]
+        }
+    }
+
+
+class DashboardResponse(BaseModel):
+    """Response model for dashboard scanning."""
+    
+    success: bool
+    date: str
+    market_overviews: list[dict]
+    recommendations: list[dict]
+    summary: str
+    error: str | None = None
+
+
+@app.post("/api/v1/dashboard", response_model=DashboardResponse, tags=["Dashboard"])
+async def scan_dashboard(request: DashboardRequest):
+    """
+    每日决策仪表盘 - 扫描大盘推荐潜力股
+    
+    功能：
+    - 扫描 A股、美股（纳斯达克）、港股市场
+    - 推荐 Top N 潜力股票
+    - 提供推荐理由和数据来源
+    
+    支持市场：
+    - A股: 沪深两市
+    - 美股: NASDAQ/NYSE 热门股
+    - 港股: 恒生成分股
+    """
+    from tradingagents.core.tools.dashboard_scanner import DashboardScanner
+    
+    logger.info(f"Dashboard scan requested for markets: {request.markets}")
+    
+    try:
+        scanner = DashboardScanner()
+        result = scanner.scan_market(markets=request.markets, top_n=request.top_n)
+        
+        # 转换 MarketOverview 对象为字典
+        overviews = []
+        for ov in result.get('market_overviews', []):
+            if hasattr(ov, '__dict__'):
+                overviews.append({
+                    'market_type': getattr(ov, 'market_type', ''),
+                    'index_name': getattr(ov, 'index_name', ''),
+                    'index_value': getattr(ov, 'index_value', 0),
+                    'index_change_pct': getattr(ov, 'index_change_pct', 0),
+                    'up_count': getattr(ov, 'up_count', 0),
+                    'down_count': getattr(ov, 'down_count', 0),
+                    'total_amount': getattr(ov, 'total_amount', 0),
+                })
+            else:
+                overviews.append(ov)
+        
+        return DashboardResponse(
+            success=True,
+            date=result.get('date', datetime.now().strftime('%Y-%m-%d')),
+            market_overviews=overviews,
+            recommendations=result.get('recommendations', []),
+            summary=result.get('summary', ''),
+        )
+    except Exception as e:
+        logger.error(f"Dashboard scan error: {e}", exc_info=True)
+        return DashboardResponse(
+            success=False,
+            date=datetime.now().strftime('%Y-%m-%d'),
+            market_overviews=[],
+            recommendations=[],
+            summary='',
+            error=str(e),
+        )
+
+
+@app.get("/api/v1/dashboard/stock/{code}", tags=["Dashboard"])
+async def get_stock_recommendation(code: str):
+    """
+    获取单只股票的推荐分析
+    
+    支持：
+    - A股代码：600519, 000001
+    - 美股代码：AAPL, NVDA
+    - 港股代码：00700, 09988
+    """
+    from tradingagents.core.tools.dashboard_scanner import DashboardScanner
+    
+    logger.info(f"Getting recommendation for stock: {code}")
+    
+    try:
+        scanner = DashboardScanner()
+        rec = scanner._analyze_stock(code, 'Unknown')
+        
+        if rec:
+            return {"success": True, "recommendation": rec.to_dict()}
+        else:
+            raise HTTPException(status_code=404, detail=f"无法分析 {code}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error analyzing {code}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/v1/files/{file_type}", tags=["Files"])
 async def get_planning_file(file_type: str):
     """
@@ -392,6 +510,10 @@ async def list_agents():
         },
         "news_analyst": {
             "name": "News Analyst",
+        },
+        "daily_dashboard": {
+            "name": "Daily Dashboard",
+            "description": "Daily market scanner - recommends top stocks from A-shares, US stocks, HK stocks",
             "description": "Gathers and analyzes relevant news",
         },
         "technical_analyst": {

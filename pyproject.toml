@@ -9,6 +9,7 @@ dependencies = [
     "backtrader>=1.9.78.123",
     "chainlit>=2.5.5",
     "chromadb>=1.0.12",
+    "efinance>=0.5.0",
     "eodhd>=1.0.32",
     "fastapi>=0.115.0",
     "feedparser>=6.0.11",
