@@ -112,6 +112,18 @@ PUSHOVER_API_TOKEN=xxx
 CUSTOM_WEBHOOK_URLS=https://discord.com/api/webhooks/xxx
 ```
 
+#### Qwen (OpenAI-compatible mode)
+
+```bash
+# ===== Optional: Qwen =====
+# Switch at runtime via CLI: python run_agent.py --model qwen ...
+QWEN_API_KEY=your_dashscope_api_key
+QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+QWEN_MODEL=qwen-latest
+```
+
+For web search in Qwen mode, set `SERPER_API_KEY` (recommended). If not set, it will fall back to scraping Google News, which may be rate-limited.
+
 ---
 
 ## Usage
@@ -136,6 +148,7 @@ Visit http://localhost:7860 to use the graphical interface.
 # Analyze a stock
 python run_agent.py analyze AAPL
 python run_agent.py analyze NVDA --date 2025-01-15
+python run_agent.py --model qwen analyze AAPL
 
 # Track investor holdings
 python run_agent.py track "Warren Buffett"

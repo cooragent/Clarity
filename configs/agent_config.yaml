@@ -7,10 +7,10 @@ results_dir: "${TRADINGAGENTS_RESULTS_DIR:-./results}"
 templates_dir: "${PWD}/templates"
 
 # LLM settings
-llm_provider: "anthropic"  # anthropic, openai, google
-deep_think_llm: "claude-sonnet-4-20250514"
-quick_think_llm: "claude-sonnet-4-20250514"
-backend_url: null  # Use default API endpoint
+llm_provider: "qwen"  # anthropic, openai, google, qwen
+deep_think_llm: "qwen-latest"
+quick_think_llm: "qwen-latest"
+backend_url: null  # Use default (overridden by LLM_BACKEND_URL)
 
 # Agent settings
 max_retry_count: 3

@@ -35,6 +35,7 @@ Notification Channels (configure in .env):
 import argparse
 import asyncio
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -76,9 +77,45 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _apply_model_selection(model: str) -> None:
+    selected = (model or "openai").lower()
+
+    if selected == "openai":
+        os.environ["LLM_PROVIDER"] = "openai"
+        os.environ["LLM_BACKEND_URL"] = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        openai_model = os.getenv("OPENAI_MODEL")
+        openai_deep_model = os.getenv("OPENAI_DEEP_MODEL")
+        if openai_model:
+            os.environ["QUICK_THINK_LLM"] = openai_model
+        if openai_deep_model:
+            os.environ["DEEP_THINK_LLM"] = openai_deep_model
+    elif selected == "qwen":
+        os.environ["LLM_PROVIDER"] = "qwen"
+        os.environ["LLM_BACKEND_URL"] = os.getenv(
+            "QWEN_BASE_URL",
+            "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        )
+        qwen_model = os.getenv("QWEN_MODEL", "qwen-latest")
+        qwen_deep_model = os.getenv("QWEN_DEEP_MODEL", qwen_model)
+        os.environ["QUICK_THINK_LLM"] = qwen_model
+        os.environ["DEEP_THINK_LLM"] = qwen_deep_model
+
+        qwen_api_key = os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
+        openai_api_key = os.getenv("OPENAI_API_KEY", "")
+        if qwen_api_key and (not openai_api_key or openai_api_key.startswith("your_")):
+            os.environ["OPENAI_API_KEY"] = qwen_api_key
+
+    try:
+        from tradingagents.dataflows.config import reload_config_from_env
+
+        reload_config_from_env()
+    except Exception:
+        pass
+
+
 async def run_analyze(ticker: str, trade_date: str | None = None) -> None:
     """Analyze a stock."""
-    config = AgentConfig()
+    config = AgentConfig(llm_provider=os.getenv("LLM_PROVIDER", "openai"))
     orchestrator = FinancialAgentOrchestrator(config)
 
     print(f"\n{'='*60}")
@@ -96,7 +133,7 @@ async def run_analyze(ticker: str, trade_date: str | None = None) -> None:
 
 async def run_track(investor_name: str, trade_date: str | None = None) -> None:
     """Track an investor's holdings."""
-    config = AgentConfig()
+    config = AgentConfig(llm_provider=os.getenv("LLM_PROVIDER", "openai"))
     orchestrator = FinancialAgentOrchestrator(config)
 
     print(f"\n{'='*60}")
@@ -114,7 +151,7 @@ async def run_track(investor_name: str, trade_date: str | None = None) -> None:
 
 async def run_screen(criteria: str, trade_date: str | None = None) -> None:
     """Screen stocks based on criteria."""
-    config = AgentConfig()
+    config = AgentConfig(llm_provider=os.getenv("LLM_PROVIDER", "openai"))
     orchestrator = FinancialAgentOrchestrator(config)
 
     print(f"\n{'='*60}")
@@ -132,7 +169,7 @@ async def run_screen(criteria: str, trade_date: str | None = None) -> None:
 
 async def run_ask(query: str) -> None:
     """Process a natural language query."""
-    config = AgentConfig()
+    config = AgentConfig(llm_provider=os.getenv("LLM_PROVIDER", "openai"))
     orchestrator = FinancialAgentOrchestrator(config)
 
     print(f"\n{'='*60}")
@@ -495,6 +532,13 @@ Examples:
         """,
     )
 
+    parser.add_argument(
+        "--model",
+        default="openai",
+        choices=["openai", "qwen"],
+        help="LLM provider (default: openai)",
+    )
+
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # Analyze command
@@ -572,6 +616,8 @@ Examples:
     if args.command is None:
         parser.print_help()
         sys.exit(1)
+
+    _apply_model_selection(args.model)
 
     # Run the appropriate command
     if args.command == "analyze":

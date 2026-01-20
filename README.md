@@ -112,6 +112,18 @@ PUSHOVER_API_TOKEN=xxx
 CUSTOM_WEBHOOK_URLS=https://oapi.dingtalk.com/robot/send?access_token=xxx
 ```
 
+#### Qwen（OpenAI 兼容模式）
+
+```bash
+# ===== 可选：Qwen =====
+# 运行时通过 CLI 参数切换：python run_agent.py --model qwen ...
+QWEN_API_KEY=your_dashscope_api_key
+QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+QWEN_MODEL=qwen-latest
+```
+
+Qwen 模式下如需联网检索，建议配置 `SERPER_API_KEY`。未配置时会回退为抓取 Google News，可能触发频控。
+
 ---
 
 ## 使用方法
@@ -136,6 +148,7 @@ python webui.py --share
 # 分析股票
 python run_agent.py analyze AAPL
 python run_agent.py analyze NVDA --date 2025-01-15
+python run_agent.py --model qwen analyze AAPL
 
 # 跟踪投资者持仓
 python run_agent.py track "Warren Buffett"

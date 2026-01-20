@@ -10,15 +10,27 @@ def initialize_config():
     """Initialize the configuration with default values."""
     global _config, DATA_DIR
     if _config is None:
-        _config = default_config.DEFAULT_CONFIG.copy()
+        _config = default_config.get_default_config()
         DATA_DIR = _config["data_dir"]
+
+
+def reload_config_from_env():
+    global _config, DATA_DIR
+    _config = default_config.get_default_config()
+    DATA_DIR = _config["data_dir"]
+    try:
+        from . import interface as interface_module
+
+        interface_module.DATA_DIR = DATA_DIR
+    except Exception:
+        pass
 
 
 def set_config(config: Dict):
     """Update the configuration with custom values."""
     global _config, DATA_DIR
     if _config is None:
-        _config = default_config.DEFAULT_CONFIG.copy()
+        _config = default_config.get_default_config()
     _config.update(config)
     DATA_DIR = _config["data_dir"]
 

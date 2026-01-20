@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import json
 import os
+import requests
 import pandas as pd
 from tqdm import tqdm
 import yfinance as yf
@@ -702,106 +703,221 @@ def get_YFin_data(
     return filtered_data
 
 
-def get_stock_news_openai(ticker, curr_date):
-    config = get_config()
+def _extract_responses_text(response) -> str:
+    output_text = getattr(response, "output_text", None)
+    if output_text:
+        return str(output_text)
+
+    output = getattr(response, "output", None)
+    if not isinstance(output, list):
+        return ""
+
+    for item in output:
+        content = getattr(item, "content", None)
+        if content is None and isinstance(item, dict):
+            content = item.get("content")
+        if not isinstance(content, list):
+            continue
+        for block in content:
+            text = getattr(block, "text", None)
+            if text is None and isinstance(block, dict):
+                text = block.get("text")
+            if text:
+                return str(text)
+    return ""
+
+
+def _serper_web_search(query: str, num_results: int = 8) -> list[dict]:
+    api_key = os.getenv("SERPER_API_KEY")
+    if not api_key:
+        return []
+
+    base_url = os.getenv("SERPER_BASE_URL", "https://google.serper.dev").rstrip("/")
+    response = requests.post(
+        f"{base_url}/search",
+        headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
+        json={"q": query, "num": num_results},
+        timeout=20,
+    )
+    if response.status_code != 200:
+        return []
+
+    payload = response.json()
+    results: list[dict] = []
+
+    for item in payload.get("news", [])[:num_results]:
+        results.append(
+            {
+                "title": item.get("title"),
+                "link": item.get("link"),
+                "snippet": item.get("snippet"),
+                "date": item.get("date"),
+                "source": item.get("source"),
+            }
+        )
+
+    if len(results) < num_results:
+        for item in payload.get("organic", [])[: (num_results - len(results))]:
+            results.append(
+                {
+                    "title": item.get("title"),
+                    "link": item.get("link"),
+                    "snippet": item.get("snippet"),
+                    "date": item.get("date"),
+                    "source": item.get("source"),
+                }
+            )
+
+    return results
+
+
+def _format_web_results(results: list[dict], limit: int = 8) -> str:
+    lines: list[str] = []
+    for idx, item in enumerate(results[:limit], start=1):
+        title = (item.get("title") or "").strip()
+        link = (item.get("link") or "").strip()
+        snippet = (item.get("snippet") or "").strip()
+        date = (item.get("date") or "").strip()
+        source = (item.get("source") or "").strip()
+
+        header_parts = [p for p in [title, source, date] if p]
+        header = " | ".join(header_parts) if header_parts else "Result"
+
+        lines.append(f"{idx}. {header}")
+        if snippet:
+            lines.append(f"   {snippet}")
+        if link:
+            lines.append(f"   {link}")
+    return "\n".join(lines).strip()
+
+
+def _web_search_context(
+    query: str, start_date: str | None = None, end_date: str | None = None
+) -> str:
+    results = _serper_web_search(query)
+    if results:
+        return _format_web_results(results)
+
+    if start_date and end_date:
+        try:
+            news_results = getNewsData(query.replace(" ", "+"), start_date, end_date)
+        except Exception:
+            news_results = []
+        if news_results:
+            return _format_web_results(news_results)
+
+    return ""
+
+
+def _call_llm_text(
+    prompt: str,
+    config: Dict,
+    web_search_query: str | None = None,
+    web_search_start: str | None = None,
+    web_search_end: str | None = None,
+) -> str:
+    provider = str(config.get("llm_provider") or "openai").lower()
+    model = config.get("quick_think_llm")
     client = OpenAI(base_url=config["backend_url"])
 
-    response = client.responses.create(
-        model=config["quick_think_llm"],
-        input=[
+    if provider == "openai":
+        response = client.responses.create(
+            model=model,
+            input=[
+                {
+                    "role": "system",
+                    "content": [{"type": "input_text", "text": prompt}],
+                }
+            ],
+            text={"format": {"type": "text"}},
+            reasoning={},
+            tools=[
+                {
+                    "type": "web_search_preview",
+                    "user_location": {"type": "approximate"},
+                    "search_context_size": "low",
+                }
+            ],
+            temperature=1,
+            max_output_tokens=4096,
+            top_p=1,
+            store=True,
+        )
+        return _extract_responses_text(response)
+
+    web_query = web_search_query or prompt
+    web_context = _web_search_context(
+        web_query, start_date=web_search_start, end_date=web_search_end
+    )
+    user_content = prompt
+    if web_context:
+        user_content = (
+            f"{prompt}\n\nWeb search results:\n{web_context}\n\n"
+            "Use the results to answer. Prefer sources that fall in the requested time window. "
+            "If the results are insufficient or out-of-range, say so explicitly."
+        )
+
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
             {
                 "role": "system",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": f"Can you search Social Media for {ticker} from 7 days before {curr_date} to {curr_date}? Make sure you only get the data posted during that period.",
-                    }
-                ],
-            }
-        ],
-        text={"format": {"type": "text"}},
-        reasoning={},
-        tools=[
-            {
-                "type": "web_search_preview",
-                "user_location": {"type": "approximate"},
-                "search_context_size": "low",
-            }
+                "content": "You are a financial research assistant. Use provided web results when available and cite links when relevant.",
+            },
+            {"role": "user", "content": user_content},
         ],
         temperature=1,
-        max_output_tokens=4096,
+        max_tokens=4096,
         top_p=1,
-        store=True,
     )
+    choices = getattr(response, "choices", None)
+    if not choices:
+        return ""
+    message = getattr(choices[0], "message", None)
+    content = getattr(message, "content", None)
+    return str(content) if content else ""
 
-    return response.output[1].content[0].text
+
+def get_stock_news_openai(ticker, curr_date):
+    config = get_config()
+    start_date = datetime.strptime(curr_date, "%Y-%m-%d") - relativedelta(days=7)
+    before = start_date.strftime("%Y-%m-%d")
+    prompt = f"Can you search Social Media for {ticker} from 7 days before {curr_date} to {curr_date}? Make sure you only get the data posted during that period."
+    query = f"{ticker} social media sentiment {before} {curr_date}"
+    return _call_llm_text(
+        prompt,
+        config,
+        web_search_query=query,
+        web_search_start=before,
+        web_search_end=curr_date,
+    )
 
 
 def get_global_news_openai(curr_date):
     config = get_config()
-    client = OpenAI(base_url=config["backend_url"])
-
-    response = client.responses.create(
-        model=config["quick_think_llm"],
-        input=[
-            {
-                "role": "system",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": f"Can you search global or macroeconomics news from 7 days before {curr_date} to {curr_date} that would be informative for trading purposes? Make sure you only get the data posted during that period.",
-                    }
-                ],
-            }
-        ],
-        text={"format": {"type": "text"}},
-        reasoning={},
-        tools=[
-            {
-                "type": "web_search_preview",
-                "user_location": {"type": "approximate"},
-                "search_context_size": "low",
-            }
-        ],
-        temperature=1,
-        max_output_tokens=4096,
-        top_p=1,
-        store=True,
+    start_date = datetime.strptime(curr_date, "%Y-%m-%d") - relativedelta(days=7)
+    before = start_date.strftime("%Y-%m-%d")
+    prompt = f"Can you search global or macroeconomics news from 7 days before {curr_date} to {curr_date} that would be informative for trading purposes? Make sure you only get the data posted during that period."
+    query = f"global macroeconomics news trading {before} {curr_date}"
+    return _call_llm_text(
+        prompt,
+        config,
+        web_search_query=query,
+        web_search_start=before,
+        web_search_end=curr_date,
     )
-
-    return response.output[1].content[0].text
 
 
 def get_fundamentals_openai(ticker, curr_date):
     config = get_config()
-    client = OpenAI(base_url=config["backend_url"])
-
-    response = client.responses.create(
-        model=config["quick_think_llm"],
-        input=[
-            {
-                "role": "system",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": f"Can you search Fundamental for discussions on {ticker} during of the month before {curr_date} to the month of {curr_date}. Make sure you only get the data posted during that period. List as a table, with PE/PS/Cash flow/ etc",
-                    }
-                ],
-            }
-        ],
-        text={"format": {"type": "text"}},
-        reasoning={},
-        tools=[
-            {
-                "type": "web_search_preview",
-                "user_location": {"type": "approximate"},
-                "search_context_size": "low",
-            }
-        ],
-        temperature=1,
-        max_output_tokens=4096,
-        top_p=1,
-        store=True,
+    start_date = datetime.strptime(curr_date, "%Y-%m-%d") - relativedelta(months=1)
+    before = start_date.strftime("%Y-%m-%d")
+    prompt = f"Can you search Fundamental for discussions on {ticker} during of the month before {curr_date} to the month of {curr_date}. Make sure you only get the data posted during that period. List as a table, with PE/PS/Cash flow/ etc"
+    query = f"{ticker} fundamentals PE PS cash flow {before} {curr_date}"
+    return _call_llm_text(
+        prompt,
+        config,
+        web_search_query=query,
+        web_search_start=before,
+        web_search_end=curr_date,
     )
-
-    return response.output[1].content[0].text
