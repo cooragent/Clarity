@@ -138,7 +138,7 @@ uv run python webui.py
 uv run python webui.py --share
 ```
 
-<video src="assets/ui.mp4" controls width="800"></video>
+<video src="https://github.com/user-attachments/assets/678ece2c-2fd9-4214-8470-22e401647e4b" controls width="800"></video>
 
 Visit http://localhost:7860 to use the graphical interface.
 
