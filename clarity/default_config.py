@@ -24,9 +24,9 @@ def get_default_config() -> dict:
 
     return {
         "project_dir": _PROJECT_DIR,
-        "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", "./runtime/results"),
+        "results_dir": os.getenv("clarity_RESULTS_DIR", "./runtime/results"),
         "data_dir": os.getenv(
-            "TRADINGAGENTS_DATA_DIR",
+            "clarity_DATA_DIR",
             os.path.join(_PROJECT_DIR, "dataflows", "data_cache"),
         ),
         "data_cache_dir": os.path.join(_PROJECT_DIR, "dataflows/data_cache"),

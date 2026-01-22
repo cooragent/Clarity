@@ -25,3 +25,6 @@ questionary
 python-dotenv
 langchain_anthropic
 langchain-google-genai
+pytest
+pytest-asyncio
+httpx

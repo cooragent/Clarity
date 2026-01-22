@@ -1,4 +1,4 @@
-# TradingAgents Core Module
+# clarity Core Module
 # Claude-skill style refactored architecture with planning-with-files pattern
 
 from .base_agent import AgentResult, BaseSubAgent, ToolDefinition

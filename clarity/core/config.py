@@ -49,7 +49,7 @@ class AgentConfig:
     # Project paths
     project_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent)
     results_dir: Path = field(
-        default_factory=lambda: Path(os.getenv("TRADINGAGENTS_RESULTS_DIR", "./runtime/results"))
+        default_factory=lambda: Path(os.getenv("clarity_RESULTS_DIR", "./runtime/results"))
     )
     data_dir: Path | None = None
     templates_dir: Path | None = None

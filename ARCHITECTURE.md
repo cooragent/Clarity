@@ -165,7 +165,7 @@ python run_agent.py ask "分析一下苹果公司的股票"
 ### Python API
 
 ```python
-from tradingagents.core import (
+from clarity.core import (
     FinancialAgentOrchestrator,
     AgentConfig,
     TaskType,
@@ -183,7 +183,7 @@ result = await orchestrator.run(
 )
 
 # Or use convenience functions
-from tradingagents.core import analyze_stock, track_holdings, screen_stocks
+from clarity.core import analyze_stock, track_holdings, screen_stocks
 
 result = await analyze_stock("AAPL")
 result = await track_holdings("Warren Buffett")
@@ -216,12 +216,12 @@ See `configs/agent_config.yaml` for full configuration options.
 - **planning-with-files**: Based on Claude skill pattern from `claude_skill/planning-with-files`
 - **MCP Tools**: Loading pattern from `youtu-agent` (see `utu/utils/mcp_utils.py`)
 - **FinnHub Tools**: Reference from `MiroFlow/src/utils/tool_utils.py`
-- **Original TradingAgents**: Analyst patterns from original `tradingagents/agents/analysts/`
+- **Original clarity**: Analyst patterns from original `clarity/agents/analysts/`
 
 ## File Structure
 
 ```
-TradingAgents/
+clarity/
 ├── run_agent.py                 # CLI entry point
 ├── api_server.py                # FastAPI server
 ├── test_api.py                  # API test script
@@ -236,7 +236,7 @@ TradingAgents/
 │   ├── findings.md              # Research findings
 │   ├── progress.md              # Execution log
 │   └── results/                 # Analysis results
-└── tradingagents/
+└── clarity/
     ├── __init__.py              # Package exports
     ├── core/
     │   ├── __init__.py

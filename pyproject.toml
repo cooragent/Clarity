@@ -1,5 +1,5 @@
 [project]
-name = "tradingagents"
+name = "clarity"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -24,6 +24,8 @@ dependencies = [
     "pandas>=2.3.0",
     "parsel>=1.10.0",
     "praw>=7.8.1",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=0.23.7",
     "python-dotenv>=1.1.0",
     "pytz>=2025.2",
     "questionary>=2.1.0",
@@ -38,3 +40,6 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "yfinance>=0.2.63",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

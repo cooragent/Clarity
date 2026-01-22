@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-TradingAgents MCP 工具加载工具，参考 youtu-agent 的 MCP 加载方式。
+clarity MCP 工具加载工具，参考 youtu-agent 的 MCP 加载方式。
 
 主要功能：
-- create_tradingagents_mcp_server_parameters: 生成 TradingAgents MCP 服务器参数配置
+- create_clarity_mcp_server_parameters: 生成 clarity MCP 服务器参数配置
 - load_sub_agents_as_tools: 将子智能体作为工具加载
 """
 
@@ -18,12 +18,12 @@ from mcp import StdioServerParameters
 from omegaconf import DictConfig, OmegaConf
 
 
-def create_tradingagents_mcp_server_parameters(
+def create_clarity_mcp_server_parameters(
     agent_cfg: DictConfig,
     logs_dir: str | None = None
 ) -> Tuple[List[dict], set]:
     """
-    生成 TradingAgents MCP 服务器参数配置
+    生成 clarity MCP 服务器参数配置
     
     参考: youtu-agent/MiroFlow/src/utils/tool_utils.py::create_mcp_server_parameters
     
@@ -80,14 +80,14 @@ def _load_agent_prompt_class(prompt_class_name: str):
     
     try:
         # 动态导入 config.agent_prompts 模块的类
-        from tradingagents.config.agent_prompts.base_agent_prompt import BaseAgentPrompt
-        from tradingagents.config import agent_prompts
+        from clarity.config.agent_prompts.base_agent_prompt import BaseAgentPrompt
+        from clarity.config import agent_prompts
         
-        agent_prompts_module = importlib.import_module("tradingagents.config.agent_prompts")
+        agent_prompts_module = importlib.import_module("clarity.config.agent_prompts")
         PromptClass = getattr(agent_prompts_module, prompt_class_name)
     except (ModuleNotFoundError, AttributeError) as e:
         raise ImportError(
-            f"Could not import class '{prompt_class_name}' from 'tradingagents.config.agent_prompts': {e}"
+            f"Could not import class '{prompt_class_name}' from 'clarity.config.agent_prompts': {e}"
         )
     return PromptClass()
 
