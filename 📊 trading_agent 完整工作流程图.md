@@ -42,7 +42,7 @@
 
 ### 步骤 1: 入口调用
 
-```python:80:95:TradingAgents/run_agent.py
+```python:80:95:clarity/run_agent.py
 async def run_track(investor_name: str, trade_date: str | None = None) -> None:
     """Track an investor's holdings."""
     config = AgentConfig()

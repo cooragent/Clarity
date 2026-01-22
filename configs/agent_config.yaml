@@ -2,8 +2,8 @@
 # Claude-skill style with planning-with-files pattern
 
 # Project settings
-project_dir: "${PWD}/tradingagents"
-results_dir: "${TRADINGAGENTS_RESULTS_DIR:-./results}"
+project_dir: "${PWD}/clarity"
+results_dir: "${clarity_RESULTS_DIR:-./results}"
 templates_dir: "${PWD}/templates"
 
 # LLM settings

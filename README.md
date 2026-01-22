@@ -171,7 +171,7 @@ uv run python run_agent.py dashboard -p --push-to wechat      # 仅推送到企�
 
 ```python
 import asyncio
-from tradingagents import FinancialAgentOrchestrator, AgentConfig, TaskType
+from clarity import FinancialAgentOrchestrator, AgentConfig, TaskType
 
 async def main():
     orchestrator = FinancialAgentOrchestrator()
@@ -188,7 +188,7 @@ asyncio.run(main())
 
 ```python
 # 使用通知服务
-from tradingagents.core import NotificationService
+from clarity.core import NotificationService
 
 notification = NotificationService()
 notification.send("# 测试报告\n这是 Markdown 格式的消息")
@@ -271,7 +271,7 @@ Clarity/
 │   ├── findings.md
 │   ├── progress.md
 │   └── reports/
-└── tradingagents/
+└── clarity/
     ├── core/             # 核心智能体
     │   ├── orchestrator.py     # 编排器
     │   ├── master_agent.py     # 主智能体（规划）
@@ -321,10 +321,10 @@ Clarity/
 
 ## 配置选项
 
-详见 `tradingagents/core/config.py`：
+详见 `clarity/core/config.py`：
 
 ```python
-from tradingagents import AgentConfig
+from clarity import AgentConfig
 
 config = AgentConfig(
     llm_provider="openai",              # openai, anthropic, google

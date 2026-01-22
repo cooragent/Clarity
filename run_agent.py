@@ -63,7 +63,7 @@ except ImportError:
     print("⚠️  python-dotenv not installed. Run: pip install python-dotenv")
     print("   Environment variables must be set manually.")
 
-from tradingagents.core import (
+from clarity.core import (
     AgentConfig,
     FinancialAgentOrchestrator,
     TaskType,
@@ -106,7 +106,7 @@ def _apply_model_selection(model: str) -> None:
             os.environ["OPENAI_API_KEY"] = qwen_api_key
 
     try:
-        from tradingagents.dataflows.config import reload_config_from_env
+        from clarity.dataflows.config import reload_config_from_env
 
         reload_config_from_env()
     except Exception:
@@ -189,8 +189,8 @@ async def run_dashboard(
     push_channels: list[str] | None = None,
 ) -> None:
     """Run daily dashboard scan and output markdown report."""
-    from tradingagents.core.tools.dashboard_scanner import DashboardScanner
-    from tradingagents.core.notification import NotificationService
+    from clarity.core.tools.dashboard_scanner import DashboardScanner
+    from clarity.core.notification import NotificationService
 
     if markets is None:
         markets = ["A股", "美股"]

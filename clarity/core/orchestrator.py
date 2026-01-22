@@ -14,7 +14,7 @@ try:
 
     # Look for .env in common locations
     _env_paths = [
-        Path(__file__).parent.parent.parent / ".env",  # TradingAgents/.env
+        Path(__file__).parent.parent.parent / ".env",  # clarity/.env
         Path.cwd() / ".env",
     ]
     for _env_path in _env_paths:
@@ -47,7 +47,7 @@ class FinancialAgentOrchestrator:
 
     Usage:
         ```python
-        from tradingagents.core import FinancialAgentOrchestrator, AgentConfig
+        from clarity.core import FinancialAgentOrchestrator, AgentConfig
 
         config = AgentConfig()
         orchestrator = FinancialAgentOrchestrator(config)

@@ -33,12 +33,12 @@ except (ImportError, PermissionError, OSError):
 
 import gradio as gr
 
-from tradingagents.core import (
+from clarity.core import (
     AgentConfig,
     FinancialAgentOrchestrator,
     TaskType,
 )
-from tradingagents.core.tools.dashboard_scanner import DashboardScanner
+from clarity.core.tools.dashboard_scanner import DashboardScanner
 
 # Configure logging
 logging.basicConfig(
@@ -90,7 +90,7 @@ def analyze_stock_streaming(ticker: str, trade_date: str = None):
         scanner = DashboardScanner()
         
         # 检测市场类型
-        from tradingagents.core.tools.data_provider import detect_market_type, MarketType
+        from clarity.core.tools.data_provider import detect_market_type, MarketType
         market_type = detect_market_type(ticker)
         
         if market_type == MarketType.A_SHARE:

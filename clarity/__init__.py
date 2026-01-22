@@ -1,9 +1,9 @@
-"""TradingAgents - AI-powered Financial Intelligence Agent.
+"""clarity - AI-powered Financial Intelligence Agent.
 
 A multi-agent framework for financial analysis using Claude-skill patterns.
 
 Usage:
-    from tradingagents.core import (
+    from clarity.core import (
         FinancialAgentOrchestrator,
         AgentConfig,
         TaskType,
@@ -21,7 +21,7 @@ Usage:
 """
 
 __version__ = "0.2.0"
-__author__ = "TradingAgents Team"
+__author__ = "clarity Team"
 
 # Core exports
 from .core import (

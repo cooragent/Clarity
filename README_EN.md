@@ -171,7 +171,7 @@ uv run python run_agent.py dashboard -p --push-to telegram    # Push to Telegram
 
 ```python
 import asyncio
-from tradingagents import FinancialAgentOrchestrator, AgentConfig, TaskType
+from clarity import FinancialAgentOrchestrator, AgentConfig, TaskType
 
 async def main():
     orchestrator = FinancialAgentOrchestrator()
@@ -188,7 +188,7 @@ asyncio.run(main())
 
 ```python
 # Using notification service
-from tradingagents.core import NotificationService
+from clarity.core import NotificationService
 
 notification = NotificationService()
 notification.send("# Test Report\nThis is a Markdown message")
@@ -271,7 +271,7 @@ Clarity/
 │   ├── findings.md
 │   ├── progress.md
 │   └── reports/
-└── tradingagents/
+└── clarity/
     ├── core/             # Core agents
     │   ├── orchestrator.py     # Orchestrator
     │   ├── master_agent.py     # Master agent (planning)
@@ -321,10 +321,10 @@ Clarity/
 
 ## Configuration Options
 
-See `tradingagents/core/config.py`:
+See `clarity/core/config.py`:
 
 ```python
-from tradingagents import AgentConfig
+from clarity import AgentConfig
 
 config = AgentConfig(
     llm_provider="openai",              # openai, anthropic, google
