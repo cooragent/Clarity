@@ -165,6 +165,8 @@ uv run python run_agent.py dashboard -m A股 港股              # Scan specific
 uv run python run_agent.py dashboard -n 20 -o report.md       # Top 20, save to file
 uv run python run_agent.py dashboard --push                   # Scan and push notifications
 uv run python run_agent.py dashboard -p --push-to telegram    # Push to Telegram only
+uv run python run_agent.py dashboard --interval 30            # Run every 30 minutes
+uv run python run_agent.py dashboard -i 60 --push             # Run hourly and push
 ```
 
 ### Python Code
