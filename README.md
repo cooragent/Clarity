@@ -125,11 +125,75 @@ Qwen 模式下如需联网检索，建议配置 `SERPER_API_KEY`。未配置时�
 
 ## 使用方法
 
+### REST API
+
+Clarity 提供了完整的 RESTful API 接口，支持所有核心功能。
+
+```bash
+# 启动 API 服务器
+uv run python api.py
+
+# 自定义端口和地址
+API_PORT=8000 API_HOST=0.0.0.0 uv run python api.py
+```
+
+API 服务启动后，访问 http://localhost:8000/docs 查看交互式 API 文档。
+
+#### API 端点
+
+| 端点 | 方法 | 描述 | 示例 |
+|:-----|:-----|:-----|:-----|
+| `/health` | GET | 健康检查 | - |
+| `/api/v1/analyze` | POST | 股票分析 | `{"ticker": "AAPL", "model": "openai"}` |
+| `/api/v1/track` | POST | 持仓跟踪 | `{"investor_name": "Warren Buffett"}` |
+| `/api/v1/screen` | POST | 股票筛选 | `{"criteria": "high dividend yield"}` |
+| `/api/v1/ask` | POST | 自然语言查询 | `{"query": "分析苹果公司"}` |
+| `/api/v1/dashboard` | POST | 决策仪表盘 | `{"markets": ["A股"], "top_n": 10}` |
+| `/api/v1/notification/channels` | GET | 获取通知渠道 | - |
+
+#### 使用示例
+
+```bash
+# 分析股票
+curl -X POST "http://localhost:8000/api/v1/analyze" \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "AAPL", "model": "openai"}'
+
+# 追踪投资者持仓
+curl -X POST "http://localhost:8000/api/v1/track" \
+  -H "Content-Type: application/json" \
+  -d '{"investor_name": "Warren Buffett"}'
+
+# 决策仪表盘（推送通知）
+curl -X POST "http://localhost:8000/api/v1/dashboard" \
+  -H "Content-Type: application/json" \
+  -d '{"markets": ["A股", "美股"], "top_n": 10, "push": true}'
+```
+
+#### Python 客户端示例
+
+```python
+import httpx
+import asyncio
+
+async def analyze_stock(ticker: str):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:8000/api/v1/analyze",
+            json={"ticker": ticker, "model": "openai"}
+        )
+        return response.json()
+
+# 运行
+result = asyncio.run(analyze_stock("AAPL"))
+print(result["report"])
+```
+
 ### Web UI
 
 ```bash
 # 启动环境
-source .venv/bin/activate 
+source .venv/bin/activate
 
 # 启动 Web 界面
 uv run python webui.py

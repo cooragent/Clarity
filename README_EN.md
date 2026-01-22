@@ -125,11 +125,75 @@ For web search in Qwen mode, set `SERPER_API_KEY` (recommended). If not set, it 
 
 ## Usage
 
+### REST API
+
+Clarity provides a complete RESTful API interface supporting all core functionalities.
+
+```bash
+# Start API server
+uv run python api.py
+
+# Custom port and host
+API_PORT=8000 API_HOST=0.0.0.0 uv run python api.py
+```
+
+After the API server starts, visit http://localhost:8000/docs for interactive API documentation.
+
+#### API Endpoints
+
+| Endpoint | Method | Description | Example Payload |
+|:---------|:-------|:------------|:----------------|
+| `/health` | GET | Health check | - |
+| `/api/v1/analyze` | POST | Stock analysis | `{"ticker": "AAPL", "model": "openai"}` |
+| `/api/v1/track` | POST | Holdings tracking | `{"investor_name": "Warren Buffett"}` |
+| `/api/v1/screen` | POST | Stock screening | `{"criteria": "high dividend yield"}` |
+| `/api/v1/ask` | POST | Natural language query | `{"query": "analyze Apple stock"}` |
+| `/api/v1/dashboard` | POST | Decision dashboard | `{"markets": ["A股"], "top_n": 10}` |
+| `/api/v1/notification/channels` | GET | Get notification channels | - |
+
+#### Usage Examples
+
+```bash
+# Analyze a stock
+curl -X POST "http://localhost:8000/api/v1/analyze" \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "AAPL", "model": "openai"}'
+
+# Track investor holdings
+curl -X POST "http://localhost:8000/api/v1/track" \
+  -H "Content-Type: application/json" \
+  -d '{"investor_name": "Warren Buffett"}'
+
+# Dashboard with push notification
+curl -X POST "http://localhost:8000/api/v1/dashboard" \
+  -H "Content-Type: application/json" \
+  -d '{"markets": ["A股", "美股"], "top_n": 10, "push": true}'
+```
+
+#### Python Client Example
+
+```python
+import httpx
+import asyncio
+
+async def analyze_stock(ticker: str):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:8000/api/v1/analyze",
+            json={"ticker": ticker, "model": "openai"}
+        )
+        return response.json()
+
+# Run
+result = asyncio.run(analyze_stock("AAPL"))
+print(result["report"])
+```
+
 ### Web UI
 
 ```bash
 # activate env
-source .venv/bin/activate 
+source .venv/bin/activate
 
 # Start Web interface
 uv run python webui.py
